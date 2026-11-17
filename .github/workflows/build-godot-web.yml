@@ -1,0 +1,43 @@
+name: Build KOKBORI Web Playtest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Engine/**"
+      - ".github/workflows/build-godot-web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  export-web:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import and validate project
+        run: godot --headless --editor --path Engine --quit
+
+      - name: Export mobile-friendly web build
+        run: |
+          mkdir -p build
+          godot --headless --path Engine --export-release "Web" build/index.html
+
+      - name: Package web playtest
+        run: |
+          test -f build/index.html
+          cd build
+          zip -qr ../KOKBORI-Web-Playtest.zip .
+
+      - name: Upload web playtest
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-Web-Playtest
+          path: KOKBORI-Web-Playtest.zip
+          if-no-files-found: error
+          retention-days: 14
