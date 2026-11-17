@@ -2,6 +2,12 @@ name: Build KOKBORI Native iOS IPA
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "Native/**"
+      - ".github/workflows/build-ios-ipa.yml"
 
 permissions:
   contents: read
