@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b0d">
+<title>KOKBORI RP</title>
+<style>
+:root{--gold:#d8ad52;--teal:#31d4c5;--bg:#090b0d;--panel:#151a1c;--muted:#aab2ae}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0,#26312d 0,#090b0d 58%);color:#f4f0e7;font:16px system-ui,-apple-system,sans-serif;min-height:100vh}
+header{text-align:center;padding:28px 16px 20px;border-bottom:1px solid #3b3529}.logo{font-size:clamp(34px,9vw,52px);font-weight:900;letter-spacing:6px;color:var(--gold)}.sub{font-size:11px;letter-spacing:3px;color:var(--muted)}
+main{max-width:760px;margin:auto;padding:22px 16px 80px}.hero,.card{background:linear-gradient(145deg,#1b2221,#111517);border:1px solid #3b3529;border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 12px 34px #0005}
+.kicker{color:var(--teal);font-size:11px;font-weight:800;letter-spacing:2px}h1{font-size:28px;margin:10px 0}p{color:#b9c1bd;line-height:1.55}.status{font-size:13px;color:var(--muted)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--teal);margin-right:7px}
+button{border:0;border-radius:12px;padding:14px;font-weight:800;font-size:15px;cursor:pointer}.primary{width:100%;margin-top:12px;background:linear-gradient(110deg,#e3bd69,#a77b2e);color:#17130c}
+nav{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}nav button{background:#171d1e;color:#ddd8cc;border:1px solid #39403d;padding:12px 5px}nav button.active{border-color:var(--teal);color:var(--teal)}
+.panel{display:none}.panel.active{display:block}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#0d1213;border-radius:12px;padding:15px;color:var(--muted)}.stat strong{display:block;color:var(--gold);font-size:21px}
+.map{height:210px;border-radius:14px;border:1px solid #405247;background:repeating-linear-gradient(35deg,#1a2a22 0 22px,#23352a 23px 25px);display:grid;place-items:center;text-align:center;color:#e0e8df}
+label{display:block;color:var(--muted);margin:12px 0 6px}input{width:100%;padding:13px;border:1px solid #39403d;border-radius:10px;background:#0b1011;color:white}footer{text-align:center;color:#78817d;font-size:12px;padding:16px}
+</style></head>
+<body>
+<header><div class="logo">KOKBORI</div><div class="sub">ROLE PLAY · SAN ANDREAS</div></header>
+<main>
+<section class="hero"><div class="kicker">ТВОЯ ИСТОРИЯ НАЧИНАЕТСЯ ЗДЕСЬ</div><h1>Добро пожаловать в KOKBORI RP</h1><p>Мобильный интерфейс игрового проекта: главная страница, карта и профиль игрока.</p><div class="status"><span class="dot"></span>Демонстрационный интерфейс</div><button class="primary" onclick="alert('Игровое подключение пока не реализовано. Это прототип интерфейса.')">ВОЙТИ В ИГРУ</button></section>
+<nav><button class="active" data-tab="home">Главная</button><button data-tab="map">Карта</button><button data-tab="profile">Профиль</button></nav>
+<section id="home" class="panel active"><div class="card"><div class="kicker">О ПРОЕКТЕ</div><h2>Мир открытых возможностей</h2><p>Исследуй город, знакомься с игроками и создавай собственную историю.</p></div><div class="grid"><div class="stat"><strong>24/7</strong>Игровой мир</div><div class="stat"><strong>RP</strong>Ролевая игра</div></div></section>
+<section id="map" class="panel"><div class="card"><div class="kicker">SAN ANDREAS</div><h2>Карта мира</h2><div class="map">Интерактивная карта появится в следующих версиях</div></div></section>
+<section id="profile" class="panel"><div class="card"><div class="kicker">ЛИЧНЫЙ КАБИНЕТ</div><h2>Профиль игрока</h2><label for="nick">Игровой ник</label><input id="nick" placeholder="Введи свой ник"><button class="primary" onclick="localStorage.setItem('kokboriNick',document.getElementById('nick').value);alert('Ник сохранён на этом устройстве')">СОХРАНИТЬ</button></div></section>
+<footer>KOKBORI RP · Прототип. Подключение к игровому серверу ещё не реализовано.</footer>
+</main>
+<script>
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.tab).classList.add('active')}));
+document.getElementById('nick').value=localStorage.getItem('kokboriNick')||'';
+</script></body></html>
