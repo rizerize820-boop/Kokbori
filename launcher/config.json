@@ -1,0 +1,13 @@
+{
+  "launcherVersion": 2,
+  "updateUrl": "",
+  "news": "KOKBORI RP: лаунчер готовится к подключению игрового мира Астаны.",
+  "manifestUrl": "",
+  "servers": [
+    {
+      "name": "KOKBORI RP — сервер тестирования",
+      "host": "80.242.59.112",
+      "port": 6709
+    }
+  ]
+}
