@@ -1,0 +1,72 @@
+name: Export KOKBORI iOS Xcode Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_id:
+        description: "Apple Team ID (10 characters; not a certificate or password)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  export-ios:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Team ID
+        env:
+          TEAM_ID: ${{ inputs.team_id }}
+        run: |
+          if [[ ! "$TEAM_ID" =~ ^[A-Za-z0-9]{10}$ ]]; then
+            echo "::error::Team ID must be exactly 10 letters/numbers."
+            exit 1
+          fi
+
+      - name: Install Godot 4.3 and iOS export templates
+        run: |
+          set -eux
+          mkdir -p "$RUNNER_TEMP/godot" "$HOME/Library/Application Support/Godot/export_templates/4.3.stable"
+          curl -L --fail --retry 3 \
+            https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_macos.universal.zip \
+            -o "$RUNNER_TEMP/godot/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          sudo ditto "$RUNNER_TEMP/godot/Godot.app" /Applications/Godot.app
+          curl -L --fail --retry 3 \
+            https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz \
+            -o "$RUNNER_TEMP/godot/export_templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot/export_templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/Library/Application Support/Godot/export_templates/4.3.stable/"
+
+      - name: Set Team ID in temporary export preset
+        env:
+          TEAM_ID: ${{ inputs.team_id }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path("Engine/export_presets.cfg")
+          s = p.read_text()
+          s = s.replace("YOUR_10_CHARACTER_APPLE_TEAM_ID", os.environ["TEAM_ID"])
+          p.write_text(s)
+          PY
+
+      - name: Import and export Xcode project (unsigned)
+        run: |
+          set -eux
+          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --editor --path Engine --quit
+          mkdir -p build
+          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --path Engine --export-debug "iOS" build/KOKBORI-iOS.zip
+          test -f build/KOKBORI-iOS.zip
+
+      - name: Upload unsigned Xcode project
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-iOS-Xcode-Project
+          path: build/KOKBORI-iOS.zip
+          if-no-files-found: error
+          retention-days: 14
