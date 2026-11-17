@@ -39,10 +39,14 @@ jobs:
 
           data["CFBundleDisplayName"] = "KOKBORI RP"
           data["UISupportedInterfaceOrientations"] = [
-              "UIInterfaceOrientationPortrait"
+              "UIInterfaceOrientationPortrait",
+              "UIInterfaceOrientationLandscapeLeft",
+              "UIInterfaceOrientationLandscapeRight"
           ]
           data["UISupportedInterfaceOrientations~ipad"] = [
-              "UIInterfaceOrientationPortrait"
+              "UIInterfaceOrientationPortrait",
+              "UIInterfaceOrientationLandscapeLeft",
+              "UIInterfaceOrientationLandscapeRight"
           ]
           with path.open("wb") as f:
               plistlib.dump(data, f)
