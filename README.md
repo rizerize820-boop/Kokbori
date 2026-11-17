@@ -20,15 +20,15 @@ The workflow installs XcodeGen, generates the Xcode project from `Native/project
 
 ## Configure the launcher
 
-Before using remote features, replace `https://example.com/launcher/config.json` in `Native/Sources/Config.swift` with the real HTTPS config URL. The config JSON uses `launcherVersion`, `updateUrl`, `news`, `manifestUrl`, and `servers`.
+The launcher reads its remote configuration from `launcher/config.json` in this repository over HTTPS. Update that file to change news, servers, manifest URL, or launcher update metadata. The config JSON uses `launcherVersion`, `updateUrl`, `news`, `manifestUrl`, and `servers`.
 
 Manifest entries must contain a relative path, HTTPS URL, 64-character SHA-256 digest, and positive file size. Downloaded files are verified before being moved into the app's Application Support directory.
 
-The fallback server addresses are local test placeholders, not public KOKBORI servers.
+The initial configuration points to the test server supplied for this project (`80.242.59.112:6709`). Server query results depend on the server using a compatible SA-MP query protocol; a timeout does not prove the game server itself is offline.
 
 ## Game client integration
 
-The launcher hands off to an installed external app using the `crmpclient://connect` URL scheme and passes nickname, host, and port. The target game client must register that URL scheme and implement those parameters itself. This repository does not include a SA-MP/CRMP game engine or a compatible multiplayer client.
+The launcher hands off to an installed external app using the `crmpclient://connect` URL scheme and passes nickname, host, and port. The target game client must register that URL scheme and implement those parameters itself. This repository does not include a SA-MP/CRMP game engine or a compatible multiplayer client. The Astana map cannot be entered until a compatible game runtime is integrated and the server protocol is confirmed.
 
 ## Signing
 
