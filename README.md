@@ -33,3 +33,8 @@ The launcher hands off to an installed external app using the `crmpclient://conn
 ## Signing
 
 The GitHub Actions artifact is an **unsigned IPA**. Installing it on a normal iPhone requires signing with a valid Apple development/distribution identity and provisioning profile. Building the launcher does not sign or supply the external game client.
+
+
+## Godot game runtime prototype
+
+The first playable Godot 4 prototype is in [Engine/](Engine/README.md). It contains a third-person player controller, a mobile touch joystick, and a procedurally generated placeholder district inspired by Astana. It is a separate game runtime project and is not yet embedded in the SwiftUI launcher. Multiplayer and CRMP server compatibility are not implemented.
