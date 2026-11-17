@@ -19,3 +19,15 @@ Install the Godot iOS export templates, configure an iOS export preset in Godot,
 
 ## Not implemented yet
 This is a first playable single-player prototype, not a complete CRMP client. It does not include GTA/CRMP proprietary assets, multiplayer networking, server protocol compatibility, accounts, vehicles, missions, or a production-quality Astana map. The city geometry is original placeholder geometry and will need to be replaced with detailed, licensed assets and optimized collision meshes.
+
+## iPhone browser playtest
+
+A Web export preset is included in `export_presets.cfg`. GitHub Actions can package a browser build without an Apple Team ID:
+
+1. Open the repository's **Actions** tab.
+2. Select **Build KOKBORI Web Playtest** and run the workflow (or wait for a push to `Engine/**`).
+3. Download the `KOKBORI-Web-Playtest` artifact and extract it.
+4. Host the extracted files on a static HTTPS host, then open its `index.html` URL in Safari on the iPhone.
+
+The web build is a browser test build, not an installed iOS app. Browser support and touch behavior still need to be tested on the actual iPhone. This workflow does not publish the build to a public website automatically.
+
