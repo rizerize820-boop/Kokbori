@@ -1,0 +1,28 @@
+name: Validate KOKBORI Godot Engine
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Engine/**"
+      - ".github/workflows/validate-godot-engine.yml"
+  pull_request:
+    paths:
+      - "Engine/**"
+      - ".github/workflows/validate-godot-engine.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import project and validate scripts
+        run: godot --headless --editor --path Engine --quit
+
+      - name: Run main scene headlessly
+        run: godot --headless --path Engine --quit-after 5
