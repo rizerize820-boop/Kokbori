@@ -14,21 +14,24 @@ permissions:
 jobs:
   export-web:
     runs-on: ubuntu-latest
-    container:
-      image: barichello/godot-ci:4.3
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Godot 4.3 export templates
+      - name: Install Godot 4.3 and Web export templates
         run: |
-          mkdir -p /tmp/godot-templates
+          set -eux
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable" "$RUNNER_TEMP/godot"
+          curl -L --fail --retry 3 \
+            https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip \
+            -o "$RUNNER_TEMP/godot/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          sudo install -m 0755 "$RUNNER_TEMP/godot/Godot_v4.3-stable_linux.x86_64" /usr/local/bin/godot
           curl -L --fail --retry 3 \
             https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz \
-            -o /tmp/godot-templates/export_templates.tpz
-          unzip -q /tmp/godot-templates/export_templates.tpz -d /tmp/godot-templates
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
-          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
+            -o "$RUNNER_TEMP/godot/export_templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot/export_templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/4.3.stable/"
 
       - name: Import and validate project
         run: godot --headless --editor --path Engine --quit
