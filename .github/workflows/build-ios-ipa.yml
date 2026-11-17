@@ -1,0 +1,76 @@
+name: Build KOKBORI iOS IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create iOS platform project
+        run: |
+          flutter create \
+            --org com.kokbori \
+            --project-name kokbori_rp \
+            --platforms=ios \
+            "$RUNNER_TEMP/kokbori_scaffold"
+          cp -R "$RUNNER_TEMP/kokbori_scaffold/ios" ./ios
+
+      - name: Set iOS display name and orientation
+        run: |
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+
+          path = Path("ios/Runner/Info.plist")
+          with path.open("rb") as f:
+              data = plistlib.load(f)
+
+          data["CFBundleDisplayName"] = "KOKBORI RP"
+          data["UISupportedInterfaceOrientations"] = [
+              "UIInterfaceOrientationPortrait"
+          ]
+          data["UISupportedInterfaceOrientations~ipad"] = [
+              "UIInterfaceOrientationPortrait"
+          ]
+          with path.open("wb") as f:
+              plistlib.dump(data, f)
+          PY
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app was not found at $APP_PATH"
+            find build/ios -maxdepth 5 -name Runner.app -print || true
+            exit 1
+          fi
+
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/Runner.app
+          /usr/bin/zip -qry KOKBORI-RP-unsigned.ipa Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-RP-unsigned-IPA
+          path: KOKBORI-RP-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
