@@ -10,11 +10,10 @@ struct RemoteConfig: Decodable {
     static let fallback = RemoteConfig(
         launcherVersion: Config.launcherVersion,
         updateURL: "",
-        news: "Добро пожаловать в KOKBORI RP.",
+        news: "KOKBORI RP: лаунчер готовится к подключению игрового мира Астаны.",
         manifestURL: "",
         servers: [
-            ServerInfo(name: "Тестовый сервер 01", host: "127.0.0.1", port: 7777),
-            ServerInfo(name: "Тестовый сервер 02", host: "127.0.0.1", port: 7778)
+            ServerInfo(name: "KOKBORI RP — сервер тестирования", host: "80.242.59.112", port: 6709)
         ]
     )
 
