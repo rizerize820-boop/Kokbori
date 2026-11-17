@@ -15,7 +15,7 @@ targets:
     sources:
       - Sources
     info:
-      path: Sources/Info.plist
+      path: Info.plist
       properties:
         CFBundleDisplayName: KOKBORI RP
         UILaunchScreen: {}
@@ -30,6 +30,4 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kokbori.rp
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: KOKBORI RP
         TARGETED_DEVICE_FAMILY: "1,2"
