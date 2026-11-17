@@ -22,7 +22,7 @@ struct ContentView: View {
                         switch tab {
                         case 0: home
                         case 1: serverList
-                        case 2: placeholder("КАРТА SAN ANDREAS", icon: "map.fill", text: "Интерактивная карта пока не подключена.")
+                        case 2: placeholder("ИГРОВОЙ МИР АСТАНЫ", icon: "map.fill", text: "Игровая карта ещё не встроена. Здесь появится запуск мира Астаны после подключения игрового движка.")
                         case 3: profile
                         default: settings
                         }
@@ -54,9 +54,9 @@ struct ContentView: View {
     private var home: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("SAN ANDREAS").font(.system(size: 11, weight: .bold, design: .monospaced)).tracking(3).foregroundStyle(Theme.aqua)
-                Text("ТВОЯ ИГРА.\nТВОИ ПРАВИЛА.").font(.system(size: 29, weight: .black, design: .rounded))
-                Text("KOKBORI ROLEPLAY").font(.system(size: 10, weight: .bold)).tracking(2).foregroundStyle(Theme.gold)
+                Text("ASTANA • KAZAKHSTAN").font(.system(size: 11, weight: .bold, design: .monospaced)).tracking(3).foregroundStyle(Theme.aqua)
+                Text("KOKBORI RP\nГОРОД АСТАНА").font(.system(size: 29, weight: .black, design: .rounded))
+                Text("iOS GAME LAUNCHER").font(.system(size: 10, weight: .bold)).tracking(2).foregroundStyle(Theme.gold)
             }
             .frame(maxWidth: .infinity, minHeight: 155, alignment: .leading)
             .padding(22)
@@ -114,7 +114,7 @@ struct ContentView: View {
                 row("Минимальная iOS", value: "16.0")
                 Divider().overlay(.white.opacity(0.08))
                 row("Игровой клиент", value: "Внешний")
-                Text("Требуется установленный клиент с URL-схемой crmpclient.").font(.system(size: 11)).foregroundStyle(Theme.muted)
+                Text("Игровой движок пока не встроен. Кнопка «Играть» передаёт ник и адрес сервера внешнему клиенту crmpclient. Когда будет готов отдельный игровой модуль, подключим его здесь.").font(.system(size: 11)).foregroundStyle(Theme.muted)
             }
         }
     }
@@ -177,7 +177,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(server.name).font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
                 Text("\(server.host):\(server.port)").font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.muted)
-                Text(server.isOnline ? "\(server.online)/\(server.maxOnline) игроков" : "Нет ответа / тестовый сервер")
+                Text(server.isOnline ? "\(server.online)/\(server.maxOnline) игроков" : "Нет ответа от сервера")
                     .font(.system(size: 10)).foregroundStyle(Theme.muted)
             }
             Spacer()
