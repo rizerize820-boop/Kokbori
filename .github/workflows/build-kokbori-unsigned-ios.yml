@@ -85,10 +85,10 @@ jobs:
             cat "$GITHUB_WORKSPACE/build/ios/godot-export.log"
             exit 1
           fi
-          test -s build/ios/KOKBORI-iOS.zip
-          mkdir -p build/ios/project
-          unzip -q build/ios/KOKBORI-iOS.zip -d build/ios/project
-          find build/ios/project -maxdepth 3 -name "*.xcodeproj" -print
+          test -s "$GITHUB_WORKSPACE/build/ios/KOKBORI-iOS.zip"
+          mkdir -p "$GITHUB_WORKSPACE/build/ios/project"
+          unzip -q "$GITHUB_WORKSPACE/build/ios/KOKBORI-iOS.zip" -d "$GITHUB_WORKSPACE/build/ios/project"
+          find "$GITHUB_WORKSPACE/build/ios/project" -maxdepth 3 -name "*.xcodeproj" -print
 
       - name: Build Xcode project without signing
         run: |
