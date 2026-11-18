@@ -78,11 +78,11 @@ jobs:
           set -eux
           mkdir -p build/ios
           set -o pipefail
-          if ! "/Applications/Godot.app/Contents/MacOS/Godot" --headless --verbose --path Engine --export-release "iOS" build/ios/KOKBORI-iOS.zip 2>&1 | tee build/ios/godot-export.log; then
+          if ! "/Applications/Godot.app/Contents/MacOS/Godot" --headless --verbose --path Engine --export-release "iOS" "$GITHUB_WORKSPACE/build/ios/KOKBORI-iOS.zip" 2>&1 | tee "$GITHUB_WORKSPACE/build/ios/godot-export.log"; then
             echo "=== Godot export failed; relevant diagnostics ==="
-            grep -Ein -C 3 "error|warning|team|template|ETC2|ASTC|export" build/ios/godot-export.log || true
+            grep -Ein -C 3 "error|warning|team|template|ETC2|ASTC|export" "$GITHUB_WORKSPACE/build/ios/godot-export.log" || true
             echo "=== Full export log ==="
-            cat build/ios/godot-export.log
+            cat "$GITHUB_WORKSPACE/build/ios/godot-export.log"
             exit 1
           fi
           test -s build/ios/KOKBORI-iOS.zip
