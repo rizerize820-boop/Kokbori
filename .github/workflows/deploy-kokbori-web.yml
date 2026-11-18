@@ -38,14 +38,14 @@ jobs:
 
       - name: Export Web build
         run: |
-          mkdir -p site
+          mkdir -p Engine/site
           godot --headless --path Engine --export-release "Web" site/index.html
-          touch site/.nojekyll
+          touch Engine/site/.nojekyll
 
       - name: Upload downloadable browser build
         uses: actions/upload-artifact@v4
         with:
           name: KOKBORI-Web-Playtest
-          path: site
+          path: Engine/site
           if-no-files-found: error
           retention-days: 14
