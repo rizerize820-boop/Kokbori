@@ -36,3 +36,7 @@ A native iOS export still requires macOS, Xcode, an Apple Team ID, and signing/p
 ## Not implemented yet
 
 This is an early single-player prototype, not a complete CRMP client or online RP game. It does not yet include multiplayer networking, PAWN server integration, accounts, vehicles, missions, or a detailed Astana map. The city geometry is original placeholder geometry and must be expanded with optimized, properly licensed assets.
+
+## iOS build status
+
+The unsigned Godot iOS build is produced by the `Build KOKBORI Godot iOS app (unsigned)` workflow. It exports the Godot project into an Xcode project before compiling the iPhone app.
