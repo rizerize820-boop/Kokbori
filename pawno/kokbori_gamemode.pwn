@@ -23,11 +23,16 @@
 #define DIALOG_CHAR_NAME (1003)
 #define DIALOG_CHAR_AGE (1004)
 #define DIALOG_CHAR_GENDER (1005)
+#define DIALOG_BANK (1006)
+#define DIALOG_BANK_AMOUNT (1007)
+#define DIALOG_BANK_TRANSFER (1008)
 #define JOB_NONE (0)
 #define WORK_COOLDOWN_MS (60000)
 
 new DB:gDatabase;
 new PlayerMoney[MAX_PLAYERS];
+new PlayerBankMoney[MAX_PLAYERS];
+new BankAction[MAX_PLAYERS];
 new bool:PlayerLoggedIn[MAX_PLAYERS];
 new PlayerAccountName[MAX_PLAYERS][MAX_PLAYER_NAME + 1];
 new PlayerJob[MAX_PLAYERS];
@@ -70,7 +75,7 @@ public OnGameModeInit()
         "CREATE TABLE IF NOT EXISTS player_jobs ("
         "name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
         "job_id INTEGER NOT NULL DEFAULT 0"
-        ");
+        ");");
     db_query(gDatabase,
         "CREATE TABLE IF NOT EXISTS characters ("
         "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
@@ -79,7 +84,21 @@ public OnGameModeInit()
         "age INTEGER NOT NULL,"
         "gender INTEGER NOT NULL,"
         "skin INTEGER NOT NULL"
-        ");
+        ");");
+    db_query(gDatabase,
+        "CREATE TABLE IF NOT EXISTS bank_accounts ("
+        "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
+        "balance INTEGER NOT NULL DEFAULT 0"
+        ");");
+    db_query(gDatabase,
+        "CREATE TABLE IF NOT EXISTS bank_transactions ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "account_name TEXT NOT NULL COLLATE NOCASE,"
+        "action TEXT NOT NULL,"
+        "amount INTEGER NOT NULL,"
+        "other_account TEXT NOT NULL DEFAULT '',"
+        "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ");");
 
     print("[KOKBORI] Gamemode and SQLite account database loaded.");
     print("[KOKBORI] Unity networking requires a separate gateway adapter.");
@@ -100,6 +119,8 @@ public OnPlayerConnect(playerid)
 {
     PlayerLoggedIn[playerid] = false;
     PlayerMoney[playerid] = KOKBORI_DEFAULT_MONEY;
+    PlayerBankMoney[playerid] = 0;
+    BankAction[playerid] = 0;
     PlayerJob[playerid] = 0;
     PlayerLastWork[playerid] = 0;
     PlayerFirstName[playerid][0] = '\0';
@@ -154,6 +175,7 @@ public OnPlayerDisconnect(playerid, reason)
 {
     if (PlayerLoggedIn[playerid] && gDatabase != DB:0)
     {
+        SaveBankBalance(playerid);
         new safeName[(MAX_PLAYER_NAME * 2) + 1];
         EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
 
@@ -193,6 +215,126 @@ public OnPlayerSpawn(playerid)
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
+    if (dialogid == DIALOG_BANK)
+    {
+        if (!response) return 1;
+        if (listitem == 0)
+        {
+            new bankMsg[112];
+            format(bankMsg, sizeof bankMsg, "Наличные: %d KZT | На счёте: %d KZT", PlayerMoney[playerid], PlayerBankMoney[playerid]);
+            SendClientMessage(playerid, 0x65C9FFFF, bankMsg);
+        }
+        else if (listitem == 1 || listitem == 2)
+        {
+            BankAction[playerid] = (listitem == 1) ? 1 : 2;
+            ShowPlayerDialog(playerid, DIALOG_BANK_AMOUNT, DIALOG_STYLE_INPUT,
+                (listitem == 1) ? "KOKBORI BANK | Пополнение" : "KOKBORI BANK | Снятие",
+                "Введи сумму в KZT (от 1 до 100000000):", "Подтвердить", "Назад");
+        }
+        else if (listitem == 3)
+        {
+            ShowPlayerDialog(playerid, DIALOG_BANK_TRANSFER, DIALOG_STYLE_INPUT,
+                "KOKBORI BANK | Перевод",
+                "Введи ID игрока и сумму через пробел. Пример: 4 1500",
+                "Перевести", "Назад");
+        }
+        return 1;
+    }
+
+    if (dialogid == DIALOG_BANK_AMOUNT)
+    {
+        if (!response) { ShowBankDialog(playerid); return 1; }
+        if (!IsNumericString(inputtext) || strval(inputtext) < 1 || strval(inputtext) > 100000000)
+        {
+            SendClientMessage(playerid, 0xFFCC66FF, "Сумма должна быть числом от 1 до 100000000 KZT.");
+            ShowPlayerDialog(playerid, DIALOG_BANK_AMOUNT, DIALOG_STYLE_INPUT,
+                (BankAction[playerid] == 1) ? "KOKBORI BANK | Пополнение" : "KOKBORI BANK | Снятие",
+                "Введи сумму в KZT (от 1 до 100000000):", "Подтвердить", "Назад");
+            return 1;
+        }
+        new amount = strval(inputtext);
+        if (BankAction[playerid] == 1)
+        {
+            if (PlayerMoney[playerid] < amount)
+            {
+                SendClientMessage(playerid, 0xFF5555FF, "Недостаточно наличных для пополнения.");
+                ShowBankDialog(playerid);
+                return 1;
+            }
+            PlayerMoney[playerid] -= amount;
+            PlayerBankMoney[playerid] += amount;
+            ResetPlayerMoney(playerid);
+            GivePlayerMoney(playerid, PlayerMoney[playerid]);
+            SaveBankBalance(playerid);
+            LogBankTransaction(playerid, "deposit", amount, "");
+            SendClientMessage(playerid, 0x65C9FFFF, "Деньги зачислены на банковский счёт.");
+        }
+        else if (BankAction[playerid] == 2)
+        {
+            if (PlayerBankMoney[playerid] < amount)
+            {
+                SendClientMessage(playerid, 0xFF5555FF, "На банковском счёте недостаточно средств.");
+                ShowBankDialog(playerid);
+                return 1;
+            }
+            PlayerBankMoney[playerid] -= amount;
+            PlayerMoney[playerid] += amount;
+            ResetPlayerMoney(playerid);
+            GivePlayerMoney(playerid, PlayerMoney[playerid]);
+            SaveBankBalance(playerid);
+            LogBankTransaction(playerid, "withdraw", amount, "");
+            SendClientMessage(playerid, 0x65C9FFFF, "Деньги сняты с банковского счёта.");
+        }
+        return 1;
+    }
+
+    if (dialogid == DIALOG_BANK_TRANSFER)
+    {
+        if (!response) { ShowBankDialog(playerid); return 1; }
+        new split = strfind(inputtext, " ", true);
+        if (split < 1 || split >= strlen(inputtext) - 1 || strfind(inputtext[split + 1], " ", true) != -1)
+        {
+            SendClientMessage(playerid, 0xFFCC66FF, "Формат: ID сумма. Например: 4 1500");
+            ShowBankDialog(playerid);
+            return 1;
+        }
+        new targetText[12], amountText[16];
+        strmid(targetText, inputtext, 0, split, sizeof targetText);
+        strmid(amountText, inputtext, split + 1, strlen(inputtext), sizeof amountText);
+        if (!IsNumericString(targetText) || !IsNumericString(amountText))
+        {
+            SendClientMessage(playerid, 0xFFCC66FF, "ID и сумма должны быть числами.");
+            ShowBankDialog(playerid);
+            return 1;
+        }
+        new targetid = strval(targetText);
+        new amount = strval(amountText);
+        if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] || targetid == playerid || amount < 1 || amount > 100000000)
+        {
+            SendClientMessage(playerid, 0xFF5555FF, "Проверь ID игрока и сумму перевода.");
+            ShowBankDialog(playerid);
+            return 1;
+        }
+        if (PlayerBankMoney[playerid] < amount)
+        {
+            SendClientMessage(playerid, 0xFF5555FF, "На счёте недостаточно средств.");
+            ShowBankDialog(playerid);
+            return 1;
+        }
+        PlayerBankMoney[playerid] -= amount;
+        PlayerBankMoney[targetid] += amount;
+        SaveBankBalance(playerid);
+        SaveBankBalance(targetid);
+        LogBankTransaction(playerid, "transfer_out", amount, PlayerAccountName[targetid]);
+        LogBankTransaction(targetid, "transfer_in", amount, PlayerAccountName[playerid]);
+        new senderMsg[96], targetMsg[96];
+        format(senderMsg, sizeof senderMsg, "Перевод %d KZT игроку ID %d выполнен.", amount, targetid);
+        format(targetMsg, sizeof targetMsg, "На твой счёт поступило %d KZT от ID %d.", amount, playerid);
+        SendClientMessage(playerid, 0x65C9FFFF, senderMsg);
+        SendClientMessage(targetid, 0x65C9FFFF, targetMsg);
+        return 1;
+    }
+
     if (dialogid == DIALOG_CHAR_NAME)
     {
         if (!response) { ShowCharacterNameDialog(playerid); return 1; }
@@ -370,7 +512,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /veh");
+            "KOKBORI: /help /stats /id /job /work /bank /veh");
         return 1;
     }
 
@@ -387,6 +529,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
         new msg[64];
         format(msg, sizeof msg, "Твой игровой ID: %d", playerid);
         SendClientMessage(playerid, 0xFFFFFFFF, msg);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/bank", true))
+    {
+        ShowBankDialog(playerid);
         return 1;
     }
 
@@ -432,6 +580,67 @@ public OnPlayerCommandText(playerid, cmdtext[])
         return 1;
     }
     return 0;
+}
+
+stock ShowBankDialog(playerid)
+{
+    ShowPlayerDialog(playerid, DIALOG_BANK, DIALOG_STYLE_LIST,
+        "KOKBORI BANK | Astana",
+        "Проверить баланс\nПоложить наличные\nСнять деньги\nПеревести игроку",
+        "Выбрать", "Закрыть");
+    return 1;
+}
+
+stock SaveBankBalance(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[192];
+    format(query, sizeof query,
+        "INSERT OR REPLACE INTO bank_accounts (account_name, balance) VALUES ('%s', %d);",
+        safeName, PlayerBankMoney[playerid]);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
+stock LoadBankBalance(playerid)
+{
+    PlayerBankMoney[playerid] = 0;
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[192];
+    format(query, sizeof query,
+        "INSERT OR IGNORE INTO bank_accounts (account_name, balance) VALUES ('%s', 0);", safeName);
+    new DBResult:createResult = db_query(gDatabase, query);
+    if (createResult) db_free_result(createResult);
+    format(query, sizeof query,
+        "SELECT balance FROM bank_accounts WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    if (db_num_rows(result) > 0)
+        PlayerBankMoney[playerid] = db_get_field_assoc_int(result, "balance");
+    db_free_result(result);
+    return 1;
+}
+
+stock LogBankTransaction(playerid, const action[], amount, const otherAccount[])
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    new safeOther[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    EscapeSQL(otherAccount, safeOther, sizeof safeOther);
+    new query[320];
+    format(query, sizeof query,
+        "INSERT INTO bank_transactions (account_name, action, amount, other_account) VALUES ('%s', '%s', %d, '%s');",
+        safeName, action, amount, safeOther);
+    new DBResult:result = db_query(gDatabase, query);
+    if (result) db_free_result(result);
+    return 1;
 }
 
 stock SavePlayerJob(playerid)
@@ -489,6 +698,7 @@ stock CompleteLogin(playerid)
 {
     PlayerLoggedIn[playerid] = true;
     LoadPlayerJob(playerid);
+    LoadBankBalance(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     new query[192];
