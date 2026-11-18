@@ -85,10 +85,14 @@ jobs:
             cat "$GITHUB_WORKSPACE/build/ios/godot-export.log"
             exit 1
           fi
-          test -s "$GITHUB_WORKSPACE/build/ios/KOKBORI-iOS.zip"
-          mkdir -p "$GITHUB_WORKSPACE/build/ios/project"
-          unzip -q "$GITHUB_WORKSPACE/build/ios/KOKBORI-iOS.zip" -d "$GITHUB_WORKSPACE/build/ios/project"
-          find "$GITHUB_WORKSPACE/build/ios/project" -maxdepth 3 -name "*.xcodeproj" -print
+          PROJECT=$(find "$GITHUB_WORKSPACE/build/ios" -maxdepth 4 -name "*.xcodeproj" -print -quit)
+          if [ -z "$PROJECT" ]; then
+            echo "ERROR: Godot export completed but no .xcodeproj was found."
+            echo "=== Export output ==="
+            find "$GITHUB_WORKSPACE/build/ios" -maxdepth 3 -print
+            exit 1
+          fi
+          echo "Found Xcode project: $PROJECT"
 
       - name: Build Xcode project without signing
         run: |
