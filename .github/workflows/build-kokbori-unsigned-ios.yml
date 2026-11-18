@@ -97,7 +97,7 @@ jobs:
       - name: Build Xcode project without signing
         run: |
           set -eux
-          PROJECT=$(find build/ios/project -maxdepth 4 -name "*.xcodeproj" -print -quit)
+          PROJECT=$(find "$GITHUB_WORKSPACE/build/ios" -maxdepth 4 -name "*.xcodeproj" -print -quit)
           test -n "$PROJECT"
           INFO=$(xcodebuild -list -json -project "$PROJECT")
           SCHEME=$(printf '%s' "$INFO" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["project"]["schemes"][0])')
@@ -107,7 +107,7 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
-            -derivedDataPath build/ios/dd \
+            -derivedDataPath "$GITHUB_WORKSPACE/build/ios/dd" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
@@ -115,11 +115,11 @@ jobs:
       - name: Package unsigned IPA
         run: |
           set -eux
-          APP=$(find build/ios/dd/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" -print -quit)
+          APP=$(find "$GITHUB_WORKSPACE/build/ios/dd/Build/Products/Release-iphoneos" -maxdepth 1 -name "*.app" -print -quit)
           test -n "$APP"
-          mkdir -p build/ios/Payload
-          cp -R "$APP" build/ios/Payload/
-          cd build/ios
+          mkdir -p "$GITHUB_WORKSPACE/build/ios/Payload"
+          cp -R "$APP" "$GITHUB_WORKSPACE/build/ios/Payload/"
+          cd "$GITHUB_WORKSPACE/build/ios"
           zip -qr "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa" Payload
           test -s "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa"
 
