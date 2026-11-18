@@ -837,7 +837,9 @@ stock GiveInventoryItem(playerid, itemid, amount, targetid)
         SendClientMessage(playerid, 0xFFCC66FF, "Проверь ID предмета (1-5), количество (1-20) и ID игрока.");
         return 0;
     }
-    if (!IsPlayerInRangeOfPoint(playerid, 3.0, GetPlayerX(targetid), GetPlayerY(targetid), GetPlayerZ(targetid)))
+    new Float:targetX, Float:targetY, Float:targetZ;
+    GetPlayerPos(targetid, targetX, targetY, targetZ);
+    if (!IsPlayerInRangeOfPoint(playerid, 3.0, targetX, targetY, targetZ))
     {
         SendClientMessage(playerid, 0xFFCC66FF, "Игрок должен находиться рядом (до 3 метров).");
         return 0;
