@@ -634,7 +634,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /dropitem ID");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
         return 1;
     }
 
@@ -707,6 +707,26 @@ public OnPlayerCommandText(playerid, cmdtext[])
         new workMsg[96];
         format(workMsg, sizeof workMsg, "Смена завершена. Заработано: %d KZT.", reward);
         SendClientMessage(playerid, 0x65C9FFFF, workMsg);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/giveitem ", true, 10))
+    {
+        new firstSpace = strfind(cmdtext[10], " ", true);
+        if (firstSpace < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
+        new secondStart = 10 + firstSpace + 1;
+        new secondSpace = strfind(cmdtext[secondStart], " ", true);
+        if (secondSpace < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
+        new itemText[8], amountText[8], targetText[8];
+        strmid(itemText, cmdtext, 10, 10 + firstSpace, sizeof itemText);
+        strmid(amountText, cmdtext, secondStart, secondStart + secondSpace, sizeof amountText);
+        strmid(targetText, cmdtext, secondStart + secondSpace + 1, strlen(cmdtext), sizeof targetText);
+        if (!IsNumericString(itemText) || !IsNumericString(amountText) || !IsNumericString(targetText))
+        {
+            SendClientMessage(playerid, 0xFFCC66FF, "ID предмета, количество и ID игрока должны быть числами.");
+            return 1;
+        }
+        GiveInventoryItem(playerid, strval(itemText), strval(amountText), strval(targetText));
         return 1;
     }
 
@@ -806,6 +826,58 @@ public OnPlayerCommandText(playerid, cmdtext[])
 }
 
 
+
+
+stock GiveInventoryItem(playerid, itemid, amount, targetid)
+{
+    if (itemid < 1 || itemid > 5 || amount < 1 || amount > INVENTORY_SLOTS ||
+        targetid < 0 || targetid >= MAX_PLAYERS || targetid == playerid ||
+        !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid])
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Проверь ID предмета (1-5), количество (1-20) и ID игрока.");
+        return 0;
+    }
+    if (!IsPlayerInRangeOfPoint(playerid, 3.0, GetPlayerX(targetid), GetPlayerY(targetid), GetPlayerZ(targetid)))
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Игрок должен находиться рядом (до 3 метров).");
+        return 0;
+    }
+    if (GetPlayerVirtualWorld(playerid) != GetPlayerVirtualWorld(targetid) ||
+        GetPlayerInterior(playerid) != GetPlayerInterior(targetid))
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Вы должны находиться в одном мире и интерьере.");
+        return 0;
+    }
+    if (PlayerItemCount[playerid][itemid] < amount)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "У тебя недостаточно этих предметов.");
+        return 0;
+    }
+    new total = 0;
+    for (new i = 1; i <= 5; i++) total += PlayerItemCount[targetid][i];
+    if (total + amount > INVENTORY_SLOTS)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "У получателя недостаточно места в инвентаре.");
+        return 0;
+    }
+    PlayerItemCount[playerid][itemid] -= amount;
+    PlayerItemCount[targetid][itemid] += amount;
+    if (!SaveInventoryItem(playerid, itemid) || !SaveInventoryItem(targetid, itemid))
+    {
+        PlayerItemCount[playerid][itemid] += amount;
+        PlayerItemCount[targetid][itemid] -= amount;
+        SaveInventoryItem(playerid, itemid);
+        SaveInventoryItem(targetid, itemid);
+        SendClientMessage(playerid, 0xFF5555FF, "Не удалось сохранить передачу. Изменения отменены.");
+        return 0;
+    }
+    new senderMessage[96], targetMessage[96];
+    format(senderMessage, sizeof senderMessage, "Передано предметов: %d (ID %d) игроку ID %d.", amount, itemid, targetid);
+    format(targetMessage, sizeof targetMessage, "Ты получил предметов: %d (ID %d) от игрока ID %d.", amount, itemid, playerid);
+    SendClientMessage(playerid, 0x65C9FFFF, senderMessage);
+    SendClientMessage(targetid, 0x65C9FFFF, targetMessage);
+    return 1;
+}
 
 stock DropInventoryItem(playerid, itemid)
 {
