@@ -1,12 +1,16 @@
 using UnityEngine;
 
-/// <summary>Lightweight ambient city life for the KOKBORI greybox prototype.</summary>
+/// <summary>Ambient pedestrians, bus route and a small local shop economy.</summary>
 public sealed class KokboriCityLife : MonoBehaviour
 {
     private Transform player;
     private GUIStyle promptStyle;
     private bool shopNearby;
+    private bool shopOpen;
     private string notice = "";
+    private int wallet = 5000;
+    private int waterCount;
+    private int foodCount;
 
     public static KokboriCityLife Create(Transform playerTransform)
     {
@@ -21,7 +25,16 @@ public sealed class KokboriCityLife : MonoBehaviour
 
     public void InteractShop()
     {
-        if (shopNearby) notice = "Магазин: ассортимент скоро появится.";
+        if (shopNearby) shopOpen = !shopOpen;
+    }
+
+    private void BuyItem(string item, int price)
+    {
+        if (wallet < price) { notice = "Не хватает денег."; return; }
+        wallet -= price;
+        if (item == "Вода") waterCount++;
+        else foodCount++;
+        notice = item + " куплено.";
     }
 
     private void BuildPedestrians()
@@ -83,22 +96,42 @@ public sealed class KokboriCityLife : MonoBehaviour
     private void Update()
     {
         if (player == null) return;
-        shopNearby = Vector3.Distance(player.position, new Vector3(-19, 1, 12)) < 4.5f;
-        if (!shopNearby) notice = "";
+        shopNearby = Vector3.Distance(player.position, new Vector3(-19, 1, 12)) < 5.5f;
+        if (!shopNearby) shopOpen = false;
     }
 
     private void OnGUI()
     {
-        if (!shopNearby && string.IsNullOrEmpty(notice)) return;
         if (promptStyle == null)
         {
             promptStyle = new GUIStyle(GUI.skin.box);
-            promptStyle.fontSize = 18;
+            promptStyle.fontSize = 17;
             promptStyle.alignment = TextAnchor.MiddleCenter;
             promptStyle.normal.textColor = Color.white;
         }
-        string message = string.IsNullOrEmpty(notice) ? "МАГАЗИН  •  нажми кнопку SHOP" : notice;
-        GUI.Box(new Rect(Screen.width * 0.5f - 190, Screen.height - 115, 380, 48), message, promptStyle);
+
+        GUI.Box(new Rect(12, 12, 210, 38),
+            "KZT: " + wallet + "  |  Вода: " + waterCount + "  Еда: " + foodCount, promptStyle);
+
+        if (shopNearby && !shopOpen)
+            GUI.Box(new Rect(Screen.width * 0.5f - 190, Screen.height - 115, 380, 48),
+                "МАГАЗИН  •  нажми кнопку SHOP", promptStyle);
+
+        if (!shopOpen) return;
+        float panelWidth = 330;
+        float x = (Screen.width - panelWidth) * 0.5f;
+        float y = (Screen.height - 250) * 0.5f;
+        GUI.Box(new Rect(x, y, panelWidth, 250), "МИНИ-МАРКЕТ  •  баланс: " + wallet + " ₸", promptStyle);
+        if (GUI.Button(new Rect(x + 18, y + 55, panelWidth - 36, 48), "Вода — 250 ₸"))
+            BuyItem("Вода", 250);
+        if (GUI.Button(new Rect(x + 18, y + 112, panelWidth - 36, 48), "Перекус — 500 ₸"))
+            BuyItem("Перекус", 500);
+        GUI.Label(new Rect(x + 18, y + 168, panelWidth - 36, 28),
+            "В инвентаре: вода " + waterCount + ", еда " + foodCount);
+        if (GUI.Button(new Rect(x + 18, y + 205, panelWidth - 36, 32), "Закрыть"))
+            shopOpen = false;
+        if (!string.IsNullOrEmpty(notice))
+            GUI.Label(new Rect(x + 18, y + 238, panelWidth - 36, 24), notice);
     }
 
     private static void CreatePart(string name, Transform parent, Vector3 localPosition,
