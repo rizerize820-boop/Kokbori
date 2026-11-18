@@ -30,6 +30,11 @@
 #define VEHICLE_PRICE (15000)
 #define VEHICLE_MODEL_PLACEHOLDER (400)
 #define VEHICLE_REFUND (7500)
+#define INVENTORY_SLOTS (20)
+#define HOUSE_PRICE (250000)
+#define BUSINESS_PRICE (500000)
+#define BUSINESS_PAYOUT (2500)
+#define BUSINESS_COOLDOWN (1800)
 
 new DB:gDatabase;
 new PlayerMoney[MAX_PLAYERS];
@@ -45,6 +50,11 @@ new PlayerAge[MAX_PLAYERS];
 new PlayerGender[MAX_PLAYERS];
 new PlayerSkin[MAX_PLAYERS];
 new VehicleOwner[MAX_VEHICLES + 1][MAX_PLAYER_NAME + 1];
+new PlayerAdminLevel[MAX_PLAYERS];
+new PlayerItemCount[MAX_PLAYERS][6];
+new PlayerHouseOwned[MAX_PLAYERS];
+new PlayerBusinessOwned[MAX_PLAYERS];
+new PlayerBusinessLastCollect[MAX_PLAYERS];
 
 forward KickPlayerLater(playerid);
 
@@ -113,6 +123,11 @@ public OnGameModeInit()
         "z REAL NOT NULL,"
         "angle REAL NOT NULL"
         ");");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_inventory (account_name TEXT NOT NULL COLLATE NOCASE, item_id INTEGER NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(account_name,item_id));");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_houses (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, price INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, angle REAL NOT NULL);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_businesses (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, price INTEGER NOT NULL, last_collect INTEGER NOT NULL DEFAULT 0);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_accounts (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, level INTEGER NOT NULL DEFAULT 0);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_name TEXT NOT NULL, action TEXT NOT NULL, target_name TEXT NOT NULL DEFAULT '', details TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
     LoadOwnedVehicles();
     db_query(gDatabase,
         "CREATE TABLE IF NOT EXISTS player_work ("
@@ -540,7 +555,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp");
         return 1;
     }
 
@@ -616,6 +631,21 @@ public OnPlayerCommandText(playerid, cmdtext[])
         return 1;
     }
 
+    if (!strcmp(cmdtext, "/inv", true)) { ShowPlayerInventory(playerid); return 1; }
+    if (!strncmp(cmdtext, "/useitem ", 9, true)) { UseInventoryItem(playerid, strval(cmdtext[9])); return 1; }
+    if (!strcmp(cmdtext, "/buyhouse", true)) { BuyPlayerHouse(playerid); return 1; }
+    if (!strcmp(cmdtext, "/house", true)) { EnterPlayerHouse(playerid); return 1; }
+    if (!strcmp(cmdtext, "/sellhouse", true)) { SellPlayerHouse(playerid); return 1; }
+    if (!strcmp(cmdtext, "/buybiz", true)) { BuyPlayerBusiness(playerid); return 1; }
+    if (!strcmp(cmdtext, "/biz", true)) { ShowPlayerBusiness(playerid); return 1; }
+    if (!strcmp(cmdtext, "/bizcollect", true)) { CollectBusinessIncome(playerid); return 1; }
+    if (!strcmp(cmdtext, "/adminhelp", true))
+    {
+        if (PlayerAdminLevel[playerid] < 1) SendClientMessage(playerid, 0xFF5555FF, "Нет доступа.");
+        else SendClientMessage(playerid, 0x65C9FFFF, "Админ-система подключена; выдача уровней — через таблицу admin_accounts.");
+        return 1;
+    }
+
     if (!strcmp(cmdtext, "/buyveh", true))
     {
         BuyPlayerVehicle(playerid);
@@ -652,6 +682,112 @@ public OnPlayerCommandText(playerid, cmdtext[])
         return 1;
     }
     return 0;
+}
+
+
+stock ShowPlayerInventory(playerid)
+{
+    new msg[96], total = 0;
+    SendClientMessage(playerid, 0x65C9FFFF, "Инвентарь: 1 аптечка, 2 вода, 3 еда, 4 ремкомплект, 5 телефон.");
+    for (new i = 1; i <= 5; i++) { total += PlayerItemCount[playerid][i]; format(msg, sizeof msg, "Предмет %d: %d шт.", i, PlayerItemCount[playerid][i]); SendClientMessage(playerid, 0xFFFFFFFF, msg); }
+    format(msg, sizeof msg, "Слоты: %d/%d. Используй /useitem ID.", total, INVENTORY_SLOTS); SendClientMessage(playerid, 0xFFFFFFFF, msg);
+    return 1;
+}
+stock LoadPlayerInventory(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT item_id,amount FROM player_inventory WHERE account_name='%s';", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    for (new i = 1; i <= 5; i++) PlayerItemCount[playerid][i] = 0;
+    if (db_num_rows(result) > 0) do { new itemid = db_get_field_assoc_int(result, "item_id"); if (itemid >= 1 && itemid <= 5) PlayerItemCount[playerid][itemid] = db_get_field_assoc_int(result, "amount"); } while (db_next_row(result));
+    db_free_result(result); return 1;
+}
+stock SaveInventoryItem(playerid, itemid)
+{
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[224];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "INSERT OR REPLACE INTO player_inventory (account_name,item_id,amount) VALUES ('%s',%d,%d);", safeName, itemid, PlayerItemCount[playerid][itemid]);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result); return 1;
+}
+stock UseInventoryItem(playerid, itemid)
+{
+    if (itemid < 1 || itemid > 5 || PlayerItemCount[playerid][itemid] < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Предмет отсутствует."); return 0; }
+    if (itemid == 4) { if (!IsPlayerInAnyVehicle(playerid)) { SendClientMessage(playerid, 0xFFCC66FF, "Ремкомплект используется в автомобиле."); return 0; } RepairVehicle(GetPlayerVehicleID(playerid)); }
+    else if (itemid == 5) { SendClientMessage(playerid, 0x65C9FFFF, "Телефон пока служит предметом инвентаря."); return 1; }
+    else SetPlayerHealth(playerid, 100.0);
+    PlayerItemCount[playerid][itemid]--; SaveInventoryItem(playerid, itemid); SendClientMessage(playerid, 0x65C9FFFF, "Предмет использован."); return 1;
+}
+stock LoadPlayerProperties(playerid)
+{
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT account_name FROM player_houses WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query); PlayerHouseOwned[playerid] = (result && db_num_rows(result) > 0) ? 1 : 0; if (result) db_free_result(result);
+    format(query, sizeof query, "SELECT last_collect FROM player_businesses WHERE account_name='%s' LIMIT 1;", safeName);
+    result = db_query(gDatabase, query); PlayerBusinessOwned[playerid] = (result && db_num_rows(result) > 0) ? 1 : 0; PlayerBusinessLastCollect[playerid] = (PlayerBusinessOwned[playerid] && result) ? db_get_field_assoc_int(result, "last_collect") : 0; if (result) db_free_result(result);
+    return 1;
+}
+stock BuyPlayerHouse(playerid)
+{
+    if (PlayerHouseOwned[playerid] || PlayerMoney[playerid] < HOUSE_PRICE) { SendClientMessage(playerid, 0xFFCC66FF, "Нужны свободный слот недвижимости и 250000 KZT."); return 0; }
+    new Float:x, Float:y, Float:z, Float:a; GetPlayerPos(playerid,x,y,z); GetPlayerFacingAngle(playerid,a);
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[320]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"INSERT INTO player_houses (account_name,price,x,y,z,angle) VALUES ('%s',%d,%f,%f,%f,%f);",safeName,HOUSE_PRICE,x,y,z,a);
+    new DBResult:result=db_query(gDatabase,query); if (!result) return 0; db_free_result(result);
+    PlayerMoney[playerid]-=HOUSE_PRICE; PlayerHouseOwned[playerid]=1; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,PlayerMoney[playerid]); SavePlayerCash(playerid);
+    SendClientMessage(playerid,0x65C9FFFF,"Дом куплен. /house — вернуться к точке покупки."); return 1;
+}
+stock EnterPlayerHouse(playerid)
+{
+    if (!PlayerHouseOwned[playerid]) { SendClientMessage(playerid,0xFFCC66FF,"Сначала купи дом: /buyhouse."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1],query[192]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"SELECT x,y,z,angle FROM player_houses WHERE account_name='%s' LIMIT 1;",safeName);
+    new DBResult:result=db_query(gDatabase,query); if (!result || db_num_rows(result)==0) { if(result) db_free_result(result); return 0; }
+    new Float:x=db_get_field_assoc_float(result,"x"),Float:y=db_get_field_assoc_float(result,"y"),Float:z=db_get_field_assoc_float(result,"z"),Float:a=db_get_field_assoc_float(result,"angle"); db_free_result(result);
+    SetPlayerPos(playerid,x,y,z); SetPlayerFacingAngle(playerid,a); SendClientMessage(playerid,0x65C9FFFF,"Ты у своей недвижимости."); return 1;
+}
+stock SellPlayerHouse(playerid)
+{
+    if (!PlayerHouseOwned[playerid]) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1],query[160]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"DELETE FROM player_houses WHERE account_name='%s';",safeName);
+    new DBResult:result=db_query(gDatabase,query); if(!result) return 0; db_free_result(result);
+    PlayerHouseOwned[playerid]=0; PlayerMoney[playerid]+=HOUSE_PRICE/2; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,PlayerMoney[playerid]); SavePlayerCash(playerid);
+    SendClientMessage(playerid,0x65C9FFFF,"Дом продан за 125000 KZT."); return 1;
+}
+stock BuyPlayerBusiness(playerid)
+{
+    if (PlayerBusinessOwned[playerid] || PlayerMoney[playerid] < BUSINESS_PRICE) { SendClientMessage(playerid,0xFFCC66FF,"Нужен свободный слот и 500000 KZT."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1],query[192]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"INSERT INTO player_businesses (account_name,price,last_collect) VALUES ('%s',%d,0);",safeName,BUSINESS_PRICE);
+    new DBResult:result=db_query(gDatabase,query); if(!result) return 0; db_free_result(result);
+    PlayerMoney[playerid]-=BUSINESS_PRICE; PlayerBusinessOwned[playerid]=1; PlayerBusinessLastCollect[playerid]=0; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,PlayerMoney[playerid]); SavePlayerCash(playerid);
+    SendClientMessage(playerid,0x65C9FFFF,"Бизнес куплен. Доход 2500 KZT раз в 30 минут: /bizcollect."); return 1;
+}
+stock ShowPlayerBusiness(playerid)
+{
+    if (!PlayerBusinessOwned[playerid]) { SendClientMessage(playerid,0xFFCC66FF,"Бизнеса нет. /buybiz"); return 0; }
+    SendClientMessage(playerid,0x65C9FFFF,"Бизнес приносит 2500 KZT раз в 30 минут."); return 1;
+}
+stock CollectBusinessIncome(playerid)
+{
+    if (!PlayerBusinessOwned[playerid]) return 0;
+    new now=gettime(); if(PlayerBusinessLastCollect[playerid]!=0 && now-PlayerBusinessLastCollect[playerid]<BUSINESS_COOLDOWN) { new msg[96]; format(msg,sizeof msg,"Доход доступен через %d сек.",BUSINESS_COOLDOWN-(now-PlayerBusinessLastCollect[playerid])); SendClientMessage(playerid,0xFFCC66FF,msg); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1],query[224]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"UPDATE player_businesses SET last_collect=%d WHERE account_name='%s';",now,safeName);
+    new DBResult:result=db_query(gDatabase,query); if(!result) return 0; db_free_result(result);
+    PlayerBusinessLastCollect[playerid]=now; PlayerMoney[playerid]+=BUSINESS_PAYOUT; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,BUSINESS_PAYOUT); SavePlayerCash(playerid);
+    SendClientMessage(playerid,0x65C9FFFF,"Доход бизнеса: +2500 KZT."); return 1;
+}
+stock LoadPlayerAdmin(playerid)
+{
+    PlayerAdminLevel[playerid]=0; new safeName[(MAX_PLAYER_NAME * 2) + 1],query[192]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
+    format(query,sizeof query,"SELECT level FROM admin_accounts WHERE account_name='%s' LIMIT 1;",safeName);
+    new DBResult:result=db_query(gDatabase,query); if(!result) return 0;
+    if(db_num_rows(result)>0) PlayerAdminLevel[playerid]=db_get_field_assoc_int(result,"level"); db_free_result(result); return 1;
 }
 
 stock ToggleOwnedVehicleLock(playerid)
@@ -1090,6 +1226,9 @@ stock CompleteLogin(playerid)
     LoadPlayerJob(playerid);
     LoadBankBalance(playerid);
     LoadPlayerWork(playerid);
+    LoadPlayerInventory(playerid);
+    LoadPlayerProperties(playerid);
+    LoadPlayerAdmin(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     new query[192];
