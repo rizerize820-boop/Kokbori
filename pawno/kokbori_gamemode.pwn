@@ -292,6 +292,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             ResetPlayerMoney(playerid);
             GivePlayerMoney(playerid, PlayerMoney[playerid]);
             SaveBankBalance(playerid);
+            SavePlayerCash(playerid);
             LogBankTransaction(playerid, "deposit", amount, "");
             SendClientMessage(playerid, 0x65C9FFFF, "Деньги зачислены на банковский счёт.");
         }
@@ -308,6 +309,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             ResetPlayerMoney(playerid);
             GivePlayerMoney(playerid, PlayerMoney[playerid]);
             SaveBankBalance(playerid);
+            SavePlayerCash(playerid);
             LogBankTransaction(playerid, "withdraw", amount, "");
             SendClientMessage(playerid, 0x65C9FFFF, "Деньги сняты с банковского счёта.");
         }
@@ -607,6 +609,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
         }
         PlayerMoney[playerid] += reward;
         GivePlayerMoney(playerid, reward);
+        SavePlayerCash(playerid);
         new workMsg[96];
         format(workMsg, sizeof workMsg, "Смена завершена. Заработано: %d KZT.", reward);
         SendClientMessage(playerid, 0x65C9FFFF, workMsg);
@@ -1082,7 +1085,7 @@ stock CharacterReady(playerid)
 
 stock IsNumericString(const value[])
 {
-    if (value[0] == '\\0') return 0;
+    if (value[0] == '\0') return 0;
     for (new i = 0; value[i] != '\\0'; i++)
         if (value[i] < '0' || value[i] > '9') return 0;
     return 1;
