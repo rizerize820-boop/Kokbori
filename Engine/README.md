@@ -1,13 +1,28 @@
-# KOKBORI Engine — first playable prototype
+# KOKBORI Engine — browser playtest
 
-A small original Godot 4 project intended as the future 3D runtime for KOKBORI RP on iOS.
+A small original Godot 4 project intended as the future 3D runtime for KOKBORI RP on iPhone.
 
 ## Current prototype
 - Third-person character with a spring-arm camera.
-- Basic walking and collision.
+- Walking and collision.
 - Touch joystick for mobile and WASD/arrow-key input for desktop.
-- Procedurally generated placeholder city blocks, roads, sidewalks, and a Baiterek-inspired landmark.
-- Mobile renderer preset.
+- Procedurally generated placeholder city blocks, roads, sidewalks, a river channel, and a Baiterek-inspired landmark.
+- Godot Compatibility renderer, selected so the Web export can run in Safari.
+- Web export configured with Progressive Web App support.
+
+## iPhone playtest
+
+The repository workflow **Publish KOKBORI Browser Playtest** builds the Web version and attempts to publish it to GitHub Pages whenever `Engine/**` changes on `unity-foundation` or `main`.
+
+After a successful deployment, open the Pages URL shown in the workflow's **deploy** job on your iPhone:
+1. Open the link in Safari.
+2. Rotate to landscape if the game view is cramped.
+3. Use the on-screen joystick to move.
+4. In Safari's Share menu, choose **Add to Home Screen** to create a launcher icon.
+
+The first load may take a little while because the browser downloads the game files. PWA/offline behavior depends on Safari's cache and should be treated as experimental.
+
+If deployment fails because GitHub Pages is not enabled for the repository, the repository owner must enable **Settings → Pages → Build and deployment → GitHub Actions**, then rerun the workflow. No Apple Developer subscription is needed for the browser build.
 
 ## Run locally
 1. Install Godot 4.3 or newer.
@@ -16,30 +31,8 @@ A small original Godot 4 project intended as the future 3D runtime for KOKBORI R
 
 ## Native iOS build
 
-Godot 4.3 requires an Apple Team ID and macOS with Xcode to export an iOS Xcode project. This repository does not contain signing certificates, private keys, provisioning profiles, or passwords. Do not upload those credentials to GitHub. With only an iPhone and no Team ID/Mac, a native iOS build cannot currently be produced and installed through the standard Godot/Xcode workflow.
-
-## iPhone browser playtest
-
-A Web export preset is included in `export_presets.cfg`. GitHub Actions packages a browser build without an Apple Team ID:
-
-1. Open the repository's **Actions** tab.
-2. Select **Build KOKBORI Web Playtest** and run the workflow (or wait for a push to `Engine/**`).
-3. Download the `KOKBORI-Web-Playtest` artifact and extract it.
-4. Host the extracted files on a static HTTPS host, then open its `index.html` URL in Safari on the iPhone.
-
-The web build is a browser test build, not a native iOS app. Browser support and touch behavior still need testing on the actual iPhone. The workflow does not publish the build to a public website automatically.
+A native iOS export still requires macOS, Xcode, an Apple Team ID, and signing/provisioning. This repository does not contain signing certificates, private keys, provisioning profiles, or passwords. Do not upload those credentials to GitHub.
 
 ## Not implemented yet
-This is a first playable single-player prototype, not a complete CRMP client. It does not include GTA/CRMP proprietary assets, multiplayer networking, server protocol compatibility, accounts, vehicles, missions, or a production-quality Astana map. The city geometry is original placeholder geometry and will need to be replaced with detailed, licensed assets and optimized collision meshes.
 
-## iPhone browser playtest
-
-A Web export preset is included in `export_presets.cfg`. GitHub Actions can package a browser build without an Apple Team ID:
-
-1. Open the repository's **Actions** tab.
-2. Select **Build KOKBORI Web Playtest** and run the workflow (or wait for a push to `Engine/**`).
-3. Download the `KOKBORI-Web-Playtest` artifact and extract it.
-4. Host the extracted files on a static HTTPS host, then open its `index.html` URL in Safari on the iPhone.
-
-The web build is a browser test build, not an installed iOS app. Browser support and touch behavior still need to be tested on the actual iPhone. This workflow does not publish the build to a public website automatically.
-
+This is an early single-player prototype, not a complete CRMP client or online RP game. It does not yet include multiplayer networking, PAWN server integration, accounts, vehicles, missions, or a detailed Astana map. The city geometry is original placeholder geometry and must be expanded with optimized, properly licensed assets.
