@@ -6,9 +6,9 @@ This branch contains a runtime-generated Unity greybox. It is a development prot
 
 - Central avenue with dashed lane markings and a cross street.
 - Ishim river strip and embankment.
-- Repeated residential blocks with simple facade windows and courtyards.
+- Repeated residential blocks with simple facade windows and courtyards.\n- Sidewalks, a pedestrian crossing, bus-stop shelter and traffic-light props.
 - Street lamps, low-poly trees and an original landmark silhouette.
-- A primitive sedan with basic arcade driving.
+- A custom low-poly sedan with basic arcade driving.
 - Third-person character movement and a follow camera.
 - Mobile joystick, gas, brake and enter/exit controls.
 
@@ -23,7 +23,7 @@ This branch contains a runtime-generated Unity greybox. It is a development prot
 ## Current limitations
 
 - The city is a small blockout made from Unity primitive meshes; it is not a geographically accurate Astana map.
-- The sedan is a placeholder assembled from cubes and cylinders, not a licensed or production vehicle model.
+- The sedan now uses a custom low-poly mesh plus primitive detail parts; it is still a placeholder, not a production vehicle model.
 - Vehicle movement has no wheel physics, traffic, collision damage, fuel, or multiplayer synchronization.
 - No CRMP/Black Russia server compatibility, accounts, economy, missions, or production assets are included.
 - The scripts have been committed to GitHub but have not yet been compiled or run in Unity in this workflow.
