@@ -275,17 +275,17 @@ public OnPlayerPickUpPickup(playerid, pickupid)
         {
             new itemid = WorldItemType[slot];
             new amount = WorldItemAmount[slot];
-            DestroyPickup(pickupid);
-            WorldItemPickup[slot] = 0;
-            WorldItemType[slot] = 0;
-            WorldItemAmount[slot] = 0;
             new total = 0;
             for (new i = 1; i <= 5; i++) total += PlayerItemCount[playerid][i];
             if (total + amount > INVENTORY_SLOTS)
             {
-                SendClientMessage(playerid, 0xFFCC66FF, "Недостаточно места в инвентаре. Предмет исчез, но не был подобран.");
+                SendClientMessage(playerid, 0xFFCC66FF, "Недостаточно места в инвентаре. Освободи слот и попробуй снова.");
                 return 1;
             }
+            DestroyPickup(pickupid);
+            WorldItemPickup[slot] = 0;
+            WorldItemType[slot] = 0;
+            WorldItemAmount[slot] = 0;
             PlayerItemCount[playerid][itemid] += amount;
             SaveInventoryItem(playerid, itemid);
             SendClientMessage(playerid, 0x65C9FFFF, "Предмет подобран и сохранён в инвентаре. /inv");
@@ -827,7 +827,7 @@ stock DropInventoryItem(playerid, itemid)
     new Float:x, Float:y, Float:z;
     GetPlayerPos(playerid, x, y, z);
     new pickupid = CreatePickup(1279, 1, x, y, z - 0.5, GetPlayerVirtualWorld(playerid));
-    if (pickupid == 0)
+    if (pickupid == INVALID_PICKUP)
     {
         SendClientMessage(playerid, 0xFF5555FF, "Не удалось создать предмет на земле.");
         return 0;
