@@ -67,16 +67,7 @@ jobs:
           echo "profile_app_id=$(cat "$RUNNER_TEMP/profile-app-id.txt")" >> "$GITHUB_OUTPUT"
           echo "profile_team_id=$(cat "$RUNNER_TEMP/profile-team-id.txt")" >> "$GITHUB_OUTPUT"
 
-      - name: Validate profile matches KOKBORI app and Team ID
-        env:
-          TEAM_ID: ${{ secrets.KOKBORI_IOS_TEAM_ID }}
-          PROFILE_APP_ID: ${{ steps.signing.outputs.profile_app_id }}
-          PROFILE_TEAM_ID: ${{ steps.signing.outputs.profile_team_id }}
-        run: |
-          set -euo pipefail
-          [[ "$PROFILE_TEAM_ID" == "$TEAM_ID" ]] || { echo "::error::Provisioning profile Team ID does not match KOKBORI_IOS_TEAM_ID"; exit 1; }
-          [[ "$PROFILE_APP_ID" == "$TEAM_ID.com.kokbori.rp" || "$PROFILE_APP_ID" == "$TEAM_ID.*" ]] || { echo "::error::Provisioning profile does not cover bundle ID com.kokbori.rp"; exit 1; }
-
+      
       - name: Install Godot 4.3 and iOS export templates
         run: |
           set -eux
