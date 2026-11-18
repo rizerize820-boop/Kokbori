@@ -27,6 +27,9 @@
 #define DIALOG_BANK_AMOUNT (1007)
 #define DIALOG_BANK_TRANSFER (1008)
 #define JOB_NONE (0)
+#define VEHICLE_PRICE (15000)
+#define VEHICLE_MODEL_PLACEHOLDER (400)
+#define VEHICLE_REFUND (7500)
 
 new DB:gDatabase;
 new PlayerMoney[MAX_PLAYERS];
@@ -41,6 +44,7 @@ new PlayerLastName[MAX_PLAYERS][25];
 new PlayerAge[MAX_PLAYERS];
 new PlayerGender[MAX_PLAYERS];
 new PlayerSkin[MAX_PLAYERS];
+new VehicleOwner[MAX_VEHICLES + 1][MAX_PLAYER_NAME + 1];
 
 forward KickPlayerLater(playerid);
 
@@ -98,6 +102,18 @@ public OnGameModeInit()
         "other_account TEXT NOT NULL DEFAULT '',"
         "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
         ");");
+    db_query(gDatabase,
+        "CREATE TABLE IF NOT EXISTS owned_vehicles ("
+        "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
+        "modelid INTEGER NOT NULL,"
+        "color1 INTEGER NOT NULL DEFAULT 1,"
+        "color2 INTEGER NOT NULL DEFAULT 1,"
+        "x REAL NOT NULL,"
+        "y REAL NOT NULL,"
+        "z REAL NOT NULL,"
+        "angle REAL NOT NULL"
+        ");");
+    LoadOwnedVehicles();
     db_query(gDatabase,
         "CREATE TABLE IF NOT EXISTS player_work ("
         "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
@@ -180,6 +196,8 @@ public OnPlayerDisconnect(playerid, reason)
     if (PlayerLoggedIn[playerid] && gDatabase != DB:0)
     {
         SaveBankBalance(playerid);
+        new ownedVehicle = FindPlayerVehicle(playerid);
+        if (ownedVehicle != 0) SaveOwnedVehicle(ownedVehicle);
         new safeName[(MAX_PLAYER_NAME * 2) + 1];
         EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
 
@@ -520,7 +538,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /veh");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh");
         return 1;
     }
 
@@ -595,13 +613,222 @@ public OnPlayerCommandText(playerid, cmdtext[])
         return 1;
     }
 
+    if (!strcmp(cmdtext, "/buyveh", true))
+    {
+        BuyPlayerVehicle(playerid);
+        return 1;
+    }
+
     if (!strcmp(cmdtext, "/veh", true))
     {
-        SendClientMessage(playerid, 0xFFCC66FF,
-            "Систему транспорта добавим следующим этапом.");
+        SummonPlayerVehicle(playerid);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/parkveh", true))
+    {
+        ParkPlayerVehicle(playerid);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/sellveh", true))
+    {
+        SellPlayerVehicle(playerid);
         return 1;
     }
     return 0;
+}
+
+stock FindPlayerVehicle(playerid)
+{
+    for (new vehicleid = 1; vehicleid <= MAX_VEHICLES; vehicleid++)
+    {
+        if (VehicleOwner[vehicleid][0] != '\0' &&
+            !strcmp(VehicleOwner[vehicleid], PlayerAccountName[playerid], true))
+            return vehicleid;
+    }
+    return 0;
+}
+
+stock LoadOwnedVehicles()
+{
+    if (gDatabase == DB:0) return 0;
+    new DBResult:result = db_query(gDatabase,
+        "SELECT account_name, modelid, color1, color2, x, y, z, angle FROM owned_vehicles;");
+    if (!result) return 0;
+    if (db_num_rows(result) > 0)
+    {
+        do
+        {
+            new owner[MAX_PLAYER_NAME + 1];
+            db_get_field_assoc(result, "account_name", owner, sizeof owner);
+            new modelid = db_get_field_assoc_int(result, "modelid");
+            new color1 = db_get_field_assoc_int(result, "color1");
+            new color2 = db_get_field_assoc_int(result, "color2");
+            new Float:x = db_get_field_assoc_float(result, "x");
+            new Float:y = db_get_field_assoc_float(result, "y");
+            new Float:z = db_get_field_assoc_float(result, "z");
+            new Float:angle = db_get_field_assoc_float(result, "angle");
+            new vehicleid = CreateVehicle(modelid, x, y, z, angle, color1, color2, -1);
+            if (vehicleid > 0 && vehicleid <= MAX_VEHICLES)
+                format(VehicleOwner[vehicleid], MAX_PLAYER_NAME + 1, "%s", owner);
+        }
+        while (db_next_row(result));
+    }
+    db_free_result(result);
+    return 1;
+}
+
+stock SaveOwnedVehicle(vehicleid)
+{
+    if (vehicleid <= 0 || vehicleid > MAX_VEHICLES || VehicleOwner[vehicleid][0] == '\0' || gDatabase == DB:0)
+        return 0;
+    new Float:x, Float:y, Float:z, Float:angle;
+    GetVehiclePos(vehicleid, x, y, z);
+    GetVehicleZAngle(vehicleid, angle);
+    new modelid = GetVehicleModel(vehicleid);
+    new color1, color2;
+    GetVehicleColor(vehicleid, color1, color2);
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(VehicleOwner[vehicleid], safeName, sizeof safeName);
+    new query[320];
+    format(query, sizeof query,
+        "UPDATE owned_vehicles SET modelid=%d, color1=%d, color2=%d, x=%f, y=%f, z=%f, angle=%f WHERE account_name='%s';",
+        modelid, color1, color2, x, y, z, angle, safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
+stock BuyPlayerVehicle(playerid)
+{
+    if (FindPlayerVehicle(playerid) != 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "У тебя уже есть личный автомобиль. Используй /veh.");
+        return 0;
+    }
+    if (PlayerMoney[playerid] < VEHICLE_PRICE)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Недостаточно наличных. Автомобиль стоит 15000 KZT.");
+        return 0;
+    }
+    new Float:x, Float:y, Float:z, Float:angle;
+    GetPlayerPos(playerid, x, y, z);
+    GetPlayerFacingAngle(playerid, angle);
+    x += 4.0;
+    new vehicleid = CreateVehicle(VEHICLE_MODEL_PLACEHOLDER, x, y, z, angle, 1, 1, -1);
+    if (vehicleid == 0 || vehicleid == INVALID_VEHICLE_ID)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Не удалось создать автомобиль. Попробуй позже.");
+        return 0;
+    }
+    PlayerMoney[playerid] -= VEHICLE_PRICE;
+    ResetPlayerMoney(playerid);
+    GivePlayerMoney(playerid, PlayerMoney[playerid]);
+    format(VehicleOwner[vehicleid], MAX_PLAYER_NAME + 1, "%s", PlayerAccountName[playerid]);
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[320];
+    format(query, sizeof query,
+        "INSERT INTO owned_vehicles (account_name, modelid, color1, color2, x, y, z, angle) VALUES ('%s', %d, 1, 1, %f, %f, %f, %f);",
+        safeName, VEHICLE_MODEL_PLACEHOLDER, x, y, z, angle);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result)
+    {
+        DestroyVehicle(vehicleid);
+        VehicleOwner[vehicleid][0] = '\0';
+        PlayerMoney[playerid] += VEHICLE_PRICE;
+        ResetPlayerMoney(playerid);
+        GivePlayerMoney(playerid, PlayerMoney[playerid]);
+        SendClientMessage(playerid, 0xFF5555FF, "Ошибка сохранения автомобиля. Деньги возвращены.");
+        return 0;
+    }
+    db_free_result(result);
+    SavePlayerCash(playerid);
+    SendClientMessage(playerid, 0x65C9FFFF, "Автомобиль куплен и сохранён. Вызови его командой /veh.");
+    return 1;
+}
+
+stock SummonPlayerVehicle(playerid)
+{
+    new vehicleid = FindPlayerVehicle(playerid);
+    if (vehicleid == 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "У тебя пока нет личного автомобиля. Покупка: /buyveh.");
+        return 0;
+    }
+    if (IsPlayerInAnyVehicle(playerid)) RemovePlayerFromVehicle(playerid);
+    new Float:x, Float:y, Float:z, Float:angle;
+    GetPlayerPos(playerid, x, y, z);
+    GetPlayerFacingAngle(playerid, angle);
+    x += 5.0;
+    SetVehiclePos(vehicleid, x, y, z);
+    SetVehicleZAngle(vehicleid, angle);
+    PutPlayerInVehicle(playerid, vehicleid, 0);
+    SendClientMessage(playerid, 0x65C9FFFF, "Твой автомобиль доставлен к тебе.");
+    return 1;
+}
+
+stock ParkPlayerVehicle(playerid)
+{
+    if (!IsPlayerInAnyVehicle(playerid) || GetPlayerVehicleSeat(playerid) != 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Сядь за руль своего автомобиля, чтобы сохранить парковку.");
+        return 0;
+    }
+    new vehicleid = GetPlayerVehicleID(playerid);
+    if (strcmp(VehicleOwner[vehicleid], PlayerAccountName[playerid], true) != 0)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Это не твой автомобиль.");
+        return 0;
+    }
+    SaveOwnedVehicle(vehicleid);
+    SendClientMessage(playerid, 0x65C9FFFF, "Положение и цвет автомобиля сохранены.");
+    return 1;
+}
+
+stock SellPlayerVehicle(playerid)
+{
+    new vehicleid = FindPlayerVehicle(playerid);
+    if (vehicleid == 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "У тебя нет личного автомобиля.");
+        return 0;
+    }
+    if (IsPlayerInVehicle(playerid, vehicleid)) RemovePlayerFromVehicle(playerid);
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[160];
+    format(query, sizeof query, "DELETE FROM owned_vehicles WHERE account_name='%s';", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Не удалось оформить продажу автомобиля.");
+        return 0;
+    }
+    db_free_result(result);
+    DestroyVehicle(vehicleid);
+    VehicleOwner[vehicleid][0] = '\0';
+    PlayerMoney[playerid] += VEHICLE_REFUND;
+    ResetPlayerMoney(playerid);
+    GivePlayerMoney(playerid, PlayerMoney[playerid]);
+    SavePlayerCash(playerid);
+    SendClientMessage(playerid, 0x65C9FFFF, "Автомобиль продан за 7500 KZT.");
+    return 1;
+}
+
+stock SavePlayerCash(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[192];
+    format(query, sizeof query, "UPDATE accounts SET money=%d WHERE name='%s';", PlayerMoney[playerid], safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
 }
 
 stock ShowBankHistory(playerid)
