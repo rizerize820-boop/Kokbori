@@ -8,7 +8,7 @@ public sealed class KokboriCityLife : MonoBehaviour
     private bool shopNearby;
     private string notice = "";
 
-    public static void Create(Transform playerTransform)
+    public static KokboriCityLife Create(Transform playerTransform)
     {
         var root = new GameObject("KOKBORI City Life");
         var life = root.AddComponent<KokboriCityLife>();
@@ -16,6 +16,12 @@ public sealed class KokboriCityLife : MonoBehaviour
         life.BuildPedestrians();
         life.BuildBus();
         life.BuildShop();
+        return life;
+    }
+
+    public void InteractShop()
+    {
+        if (shopNearby) notice = "Магазин: ассортимент скоро появится.";
     }
 
     private void BuildPedestrians()
@@ -27,7 +33,6 @@ public sealed class KokboriCityLife : MonoBehaviour
             new Vector3(-12, 0, 36), new Vector3(12, 0, -36),
             new Vector3(-18, 0, 4), new Vector3(18, 0, 18)
         };
-
         for (int i = 0; i < starts.Length; i++)
         {
             var npc = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -55,9 +60,8 @@ public sealed class KokboriCityLife : MonoBehaviour
         var route = bus.AddComponent<KokboriBusRoute>();
         route.SetPath(new Vector3(-13, 1.35f, 18), new Vector3(-13, 1.35f, 38),
             new Vector3(13, 1.35f, 38), new Vector3(13, 1.35f, 18));
-        // Window band and destination panel are deliberately simple greybox geometry.
-        CreatePart("Bus Window Band", bus.transform, new Vector3(0, 0.28f, 0), new Vector3(1.02f, 0.28f, 0.92f),
-            new Color(0.12f, 0.25f, 0.32f));
+        CreatePart("Bus Window Band", bus.transform, new Vector3(0, 0.28f, 0),
+            new Vector3(1.02f, 0.28f, 0.92f), new Color(0.12f, 0.25f, 0.32f));
         CreatePart("Bus Destination Panel", bus.transform, new Vector3(0, 0.39f, -0.47f),
             new Vector3(0.58f, 0.12f, 0.03f), new Color(0.92f, 0.78f, 0.28f));
     }
@@ -69,10 +73,9 @@ public sealed class KokboriCityLife : MonoBehaviour
         shop.transform.position = new Vector3(-19, 1.5f, 12);
         shop.transform.localScale = new Vector3(5, 3, 4);
         shop.GetComponent<Renderer>().material = MaterialFor(new Color(0.55f, 0.48f, 0.34f));
-        var trigger = shop.AddComponent<BoxCollider>();
+        var trigger = shop.GetComponent<BoxCollider>();
         trigger.isTrigger = true;
-        var interaction = shop.AddComponent<KokboriShopTrigger>();
-        interaction.Initialize(this);
+        shop.AddComponent<KokboriShopTrigger>().Initialize(this);
         CreatePart("Shop Sign", shop.transform, new Vector3(0, 0.34f, -0.51f),
             new Vector3(0.85f, 0.16f, 0.04f), new Color(0.12f, 0.35f, 0.22f));
     }
@@ -80,10 +83,7 @@ public sealed class KokboriCityLife : MonoBehaviour
     private void Update()
     {
         if (player == null) return;
-        // The trigger callback is supplemented by a distance check for CharacterController players.
         shopNearby = Vector3.Distance(player.position, new Vector3(-19, 1, 12)) < 4.5f;
-        if (shopNearby && Input.GetKeyDown(KeyCode.E))
-            notice = "Магазин: ассортимент скоро появится.";
         if (!shopNearby) notice = "";
     }
 
@@ -97,8 +97,8 @@ public sealed class KokboriCityLife : MonoBehaviour
             promptStyle.alignment = TextAnchor.MiddleCenter;
             promptStyle.normal.textColor = Color.white;
         }
-        string message = string.IsNullOrEmpty(notice) ? "МАГАЗИН  •  E — войти" : notice;
-        GUI.Box(new Rect(Screen.width * 0.5f - 170, Screen.height - 115, 340, 48), message, promptStyle);
+        string message = string.IsNullOrEmpty(notice) ? "МАГАЗИН  •  нажми кнопку SHOP" : notice;
+        GUI.Box(new Rect(Screen.width * 0.5f - 190, Screen.height - 115, 380, 48), message, promptStyle);
     }
 
     private static void CreatePart(string name, Transform parent, Vector3 localPosition,
@@ -150,11 +150,7 @@ public sealed class KokboriCityLife : MonoBehaviour
         private Vector3[] path;
         private int nextPoint;
         private float speed = 4f;
-        public void SetPath(params Vector3[] points)
-        {
-            path = points;
-            nextPoint = 1;
-        }
+        public void SetPath(params Vector3[] points) { path = points; nextPoint = 1; }
         private void Update()
         {
             if (path == null || path.Length < 2) return;
