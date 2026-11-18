@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - unity-foundation
     paths:
       - "Native/**"
       - ".github/workflows/build-ios-ipa.yml"
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   build-ios:
-    runs-on: macos-15-intel
+    runs-on: macos-15
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
