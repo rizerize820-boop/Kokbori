@@ -47,9 +47,9 @@ jobs:
       - name: Import project and export unsigned Xcode project
         run: |
           set -eux
-          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --editor --path Engine --quit
+          "/Applications/Godot.app/Contents/MacOS/Godot" --verbose --headless --editor --path Engine --quit 2>&1 | tee build-editor.log
           mkdir -p build
-          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --path Engine --export-debug "iOS" build/KOKBORI-iOS.zip
+          "/Applications/Godot.app/Contents/MacOS/Godot" --verbose --headless --path Engine --export-debug "iOS" build/KOKBORI-iOS.zip 2>&1 | tee build-export.log
           test -s build/KOKBORI-iOS.zip
 
       - name: Upload unsigned Xcode project
