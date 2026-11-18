@@ -632,6 +632,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     }
 
     if (!strcmp(cmdtext, "/inv", true)) { ShowPlayerInventory(playerid); return 1; }
+    if (!strncmp(cmdtext, "/buyitem ", 9, true)) { BuyInventoryItem(playerid, strval(cmdtext[9])); return 1; }
     if (!strncmp(cmdtext, "/useitem ", 9, true)) { UseInventoryItem(playerid, strval(cmdtext[9])); return 1; }
     if (!strcmp(cmdtext, "/buyhouse", true)) { BuyPlayerHouse(playerid); return 1; }
     if (!strcmp(cmdtext, "/house", true)) { EnterPlayerHouse(playerid); return 1; }
@@ -684,6 +685,21 @@ public OnPlayerCommandText(playerid, cmdtext[])
     return 0;
 }
 
+
+stock BuyInventoryItem(playerid, itemid)
+{
+    if (itemid < 1 || itemid > 5) { SendClientMessage(playerid, 0xFFCC66FF, "ID предмета: 1 аптечка, 2 вода, 3 еда, 4 ремкомплект, 5 телефон."); return 0; }
+    new total = 0;
+    for (new i = 1; i <= 5; i++) total += PlayerItemCount[playerid][i];
+    if (total >= INVENTORY_SLOTS) { SendClientMessage(playerid, 0xFFCC66FF, "Инвентарь заполнен."); return 0; }
+    new price;
+    switch (itemid) { case 1: price = 250; case 2: price = 50; case 3: price = 80; case 4: price = 500; case 5: price = 1000; }
+    if (PlayerMoney[playerid] < price) { SendClientMessage(playerid, 0xFF5555FF, "Недостаточно наличных."); return 0; }
+    PlayerMoney[playerid] -= price; PlayerItemCount[playerid][itemid]++;
+    ResetPlayerMoney(playerid); GivePlayerMoney(playerid, PlayerMoney[playerid]); SavePlayerCash(playerid); SaveInventoryItem(playerid, itemid);
+    SendClientMessage(playerid, 0x65C9FFFF, "Предмет куплен и сохранён. Список: /inv.");
+    return 1;
+}
 
 stock ShowPlayerInventory(playerid)
 {
