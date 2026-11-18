@@ -41,15 +41,15 @@ jobs:
         run: |
           set -euxo pipefail
           GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
-          mkdir -p build
-          "$GODOT" --headless --path Engine --export-debug "iOS" build/KOKBORI-Godot-iOS
-          test -d build/KOKBORI-Godot-iOS
-          find build/KOKBORI-Godot-iOS -maxdepth 3 -name '*.xcodeproj' -print
+          mkdir -p Engine/build
+          "$GODOT" --headless --path Engine --export-debug "iOS" Engine/build/KOKBORI-Godot-iOS
+          test -d Engine/build/KOKBORI-Godot-iOS
+          find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
 
       - name: Build unsigned iOS app with Xcode
         run: |
           set -euxo pipefail
-          PROJECT="$(find build/KOKBORI-Godot-iOS -maxdepth 3 -name '*.xcodeproj' -print -quit)"
+          PROJECT="$(find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print -quit)"
           test -n "$PROJECT"
           xcodebuild -list -project "$PROJECT"
           SCHEME="$(xcodebuild -list -json -project "$PROJECT" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["project"]["schemes"][0])')"
