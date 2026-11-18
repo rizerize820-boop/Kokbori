@@ -197,7 +197,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
     {
         if (!response) { ShowCharacterNameDialog(playerid); return 1; }
         new split = strfind(inputtext, " ", true);
-        if (split < 2 || split > 24 || strlen(inputtext) - split - 1 < 2 || strlen(inputtext) - split - 1 > 24 || strfind(inputtext[split + 1], " ", true) != -1)
+        new spaces = 0;
+        for (new i = 0; inputtext[i] != '\0'; i++)
+            if (inputtext[i] == ' ') spaces++;
+        if (split < 2 || split > 24 || strlen(inputtext) - split - 1 < 2 || strlen(inputtext) - split - 1 > 24 || spaces != 1)
         {
             SendClientMessage(playerid, 0xFFCC66FF, "Введи имя и фамилию через один пробел (2-24 символа каждое).");
             ShowCharacterNameDialog(playerid);
