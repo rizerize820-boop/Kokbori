@@ -69,6 +69,10 @@ new Float:PlayerSavedZ[MAX_PLAYERS];
 new Float:PlayerSavedAngle[MAX_PLAYERS];
 new PlayerSavedInterior[MAX_PLAYERS];
 new PlayerSavedWorld[MAX_PLAYERS];
+#define MAX_WORLD_ITEM_PICKUPS (100)
+new WorldItemPickup[MAX_WORLD_ITEM_PICKUPS];
+new WorldItemType[MAX_WORLD_ITEM_PICKUPS];
+new WorldItemAmount[MAX_WORLD_ITEM_PICKUPS];
 
 forward KickPlayerLater(playerid);
 
@@ -258,6 +262,36 @@ public OnPlayerDisconnect(playerid, reason)
     }
 
     PlayerLoggedIn[playerid] = false;
+    return 1;
+}
+
+
+public OnPlayerPickUpPickup(playerid, pickupid)
+{
+    if (!PlayerLoggedIn[playerid]) return 1;
+    for (new slot = 0; slot < MAX_WORLD_ITEM_PICKUPS; slot++)
+    {
+        if (WorldItemPickup[slot] == pickupid && WorldItemType[slot] != 0)
+        {
+            new itemid = WorldItemType[slot];
+            new amount = WorldItemAmount[slot];
+            DestroyPickup(pickupid);
+            WorldItemPickup[slot] = 0;
+            WorldItemType[slot] = 0;
+            WorldItemAmount[slot] = 0;
+            new total = 0;
+            for (new i = 1; i <= 5; i++) total += PlayerItemCount[playerid][i];
+            if (total + amount > INVENTORY_SLOTS)
+            {
+                SendClientMessage(playerid, 0xFFCC66FF, "Недостаточно места в инвентаре. Предмет исчез, но не был подобран.");
+                return 1;
+            }
+            PlayerItemCount[playerid][itemid] += amount;
+            SaveInventoryItem(playerid, itemid);
+            SendClientMessage(playerid, 0x65C9FFFF, "Предмет подобран и сохранён в инвентаре. /inv");
+            return 1;
+        }
+    }
     return 1;
 }
 
@@ -600,7 +634,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /dropitem ID");
         return 1;
     }
 
@@ -673,6 +707,13 @@ public OnPlayerCommandText(playerid, cmdtext[])
         new workMsg[96];
         format(workMsg, sizeof workMsg, "Смена завершена. Заработано: %d KZT.", reward);
         SendClientMessage(playerid, 0x65C9FFFF, workMsg);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/dropitem ", true, 10))
+    {
+        if (!IsNumericString(cmdtext[10])) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /dropitem ID (1-5)."); return 1; }
+        DropInventoryItem(playerid, strval(cmdtext[10]));
         return 1;
     }
 
@@ -764,6 +805,47 @@ public OnPlayerCommandText(playerid, cmdtext[])
     return 0;
 }
 
+
+
+stock DropInventoryItem(playerid, itemid)
+{
+    if (itemid < 1 || itemid > 5 || PlayerItemCount[playerid][itemid] < 1)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Такого предмета нет в инвентаре. Посмотри /inv.");
+        return 0;
+    }
+    new slot = -1;
+    for (new i = 0; i < MAX_WORLD_ITEM_PICKUPS; i++)
+    {
+        if (WorldItemType[i] == 0) { slot = i; break; }
+    }
+    if (slot == -1)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "На земле сейчас нет свободного места для новых предметов.");
+        return 0;
+    }
+    new Float:x, Float:y, Float:z;
+    GetPlayerPos(playerid, x, y, z);
+    new pickupid = CreatePickup(1279, 1, x, y, z - 0.5, GetPlayerVirtualWorld(playerid));
+    if (pickupid == 0)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Не удалось создать предмет на земле.");
+        return 0;
+    }
+    PlayerItemCount[playerid][itemid]--;
+    if (!SaveInventoryItem(playerid, itemid))
+    {
+        PlayerItemCount[playerid][itemid]++;
+        DestroyPickup(pickupid);
+        SendClientMessage(playerid, 0xFF5555FF, "Ошибка сохранения инвентаря. Предмет остался у тебя.");
+        return 0;
+    }
+    WorldItemPickup[slot] = pickupid;
+    WorldItemType[slot] = itemid;
+    WorldItemAmount[slot] = 1;
+    SendClientMessage(playerid, 0x65C9FFFF, "Предмет выброшен на землю. Его сможет подобрать другой игрок в этом мире.");
+    return 1;
+}
 
 stock BuyInventoryItem(playerid, itemid)
 {
