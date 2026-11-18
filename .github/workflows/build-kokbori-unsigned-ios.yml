@@ -33,6 +33,46 @@ jobs:
           set -eux
           "/Applications/Godot.app/Contents/MacOS/Godot" --headless --editor --path Engine --quit
 
+      - name: Diagnose iOS export configuration
+        if: always()
+        run: |
+          set +e
+          echo "=== Godot version ==="
+          /Applications/Godot.app/Contents/MacOS/Godot --version
+          echo "=== iOS export template ==="
+          TEMPLATE="$HOME/Library/Application Support/Godot/export_templates/4.3.stable/ios.zip"
+          if [ -s "$TEMPLATE" ]; then echo "FOUND: $TEMPLATE"; else echo "MISSING: $TEMPLATE"; fi
+          echo "=== iOS preset ==="
+          sed -n '/^\[preset\.1\]/,$p' Engine/export_presets.cfg
+          echo "=== Required values ==="
+          python3 - <<'PY'
+          import configparser, pathlib, re, sys
+          p = configparser.ConfigParser(interpolation=None)
+          p.read("Engine/export_presets.cfg")
+          section = "preset.1.options"
+          values = dict(p[section]) if p.has_section(section) else {}
+          checks = {
+              "bundle identifier": values.get("application/bundle_identifier", ""),
+              "short version": values.get("application/short_version", ""),
+              "version": values.get("application/version", ""),
+              "app store team id": values.get("application/app_store_team_id", ""),
+          }
+          for name, value in checks.items():
+              print(f"{name}: {value if value else '<EMPTY>'}")
+          bundle = checks["bundle identifier"]
+          if not re.fullmatch(r"[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+", bundle):
+              print("ERROR: bundle identifier format is invalid")
+          team = checks["app store team id"]
+          if team and (team.startswith("YOUR_") or len(team) != 10):
+              print("ERROR: Team ID is a placeholder or not 10 characters")
+          project = pathlib.Path("Engine/project.godot").read_text()
+          print("ETC2/ASTC enabled:", "textures/vram_compression/import_etc2_astc=true" in project)
+          for key, value in values.items():
+              if any(token in key for token in ("icon", "launch", "splash")) and value:
+                  path = pathlib.Path("Engine") / value.replace("res://", "")
+                  print(f"resource {key}: {path} -> {'FOUND' if path.exists() else 'MISSING'}")
+          PY
+
       - name: Export Xcode project
         run: |
           set -eux
