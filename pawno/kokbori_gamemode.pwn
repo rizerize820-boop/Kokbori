@@ -148,6 +148,7 @@ public OnGameModeInit()
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_accounts (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, level INTEGER NOT NULL DEFAULT 0);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_name TEXT NOT NULL, action TEXT NOT NULL, target_name TEXT NOT NULL DEFAULT '', details TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_factions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, faction_rank INTEGER NOT NULL DEFAULT 1);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS faction_applications (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_positions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, angle REAL NOT NULL, interior INTEGER NOT NULL DEFAULT 0, world INTEGER NOT NULL DEFAULT 0);");
     LoadOwnedVehicles();
     db_query(gDatabase,
@@ -647,7 +648,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /frankup ID /frankdown ID /setfrank ID RANK /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /applyfaction ID /fapps /faccept ID /freject ID /ffire ID /leavefaction /fchat TEXT /duty /frankup ID /frankdown ID /setfrank ID RANK /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
         return 1;
     }
 
@@ -807,7 +808,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
         SendClientMessage(playerid, 0x65C9FFFF, "Ранг фракции изменён.");
         return 1;
     }
-    if (!strcmp(cmdtext, "/joinfaction ", true, 13)) { JoinPlayerFaction(playerid, strval(cmdtext[13])); return 1; }
+    if (!strcmp(cmdtext, "/applyfaction ", true, 14)) { ApplyFaction(playerid, strval(cmdtext[14])); return 1; }
+    if (!strcmp(cmdtext, "/joinfaction ", true, 13)) { SendClientMessage(playerid, 0xFFCC66FF, "Прямое вступление отключено. Подай заявку: /applyfaction 1-3."); return 1; }
+    if (!strcmp(cmdtext, "/fapps", true)) { ShowFactionApplications(playerid); return 1; }
+    if (!strcmp(cmdtext, "/faccept ", true, 9)) { ProcessFactionApplication(playerid, strval(cmdtext[9]), true); return 1; }
+    if (!strcmp(cmdtext, "/freject ", true, 9)) { ProcessFactionApplication(playerid, strval(cmdtext[9]), false); return 1; }
+    if (!strcmp(cmdtext, "/ffire ", true, 7)) { RemoveFactionMember(playerid, strval(cmdtext[7])); return 1; }
     if (!strcmp(cmdtext, "/leavefaction", true)) { LeavePlayerFaction(playerid); return 1; }
     if (!strcmp(cmdtext, "/fchat ", true, 7)) { SendFactionMessage(playerid, cmdtext[7]); return 1; }
     if (!strcmp(cmdtext, "/duty", true)) { TogglePlayerDuty(playerid); return 1; }
