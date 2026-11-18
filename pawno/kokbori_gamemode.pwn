@@ -1137,6 +1137,70 @@ public FactionSalaryTick()
     return 1;
 }
 
+stock GetFactionDepartmentName(factionid, department, output[], size)
+{
+    if (department == 0) format(output, size, "Не назначен");
+    else if (factionid == FACTION_POLICE) format(output, size, department == 1 ? ("Работа с обращениями") : (department == 2 ? ("Общественный порядок") : ("Административный отдел")));
+    else if (factionid == FACTION_MEDIC) format(output, size, department == 1 ? ("Регистратура") : (department == 2 ? ("Координация помощи") : ("Клиника")));
+    else if (factionid == FACTION_GOVERNMENT) format(output, size, department == 1 ? ("Приём граждан") : (department == 2 ? ("Регистрация документов") : ("Городские программы")));
+    else format(output, size, "Не назначен");
+    return 1;
+}
+
+stock GetFactionPositionName(position, output[], size)
+{
+    if (position == 1) format(output, size, "Стажёр");
+    else if (position == 2) format(output, size, "Специалист");
+    else if (position == 3) format(output, size, "Старший специалист");
+    else format(output, size, "Не назначена");
+    return 1;
+}
+
+stock LoadFactionAssignment(playerid)
+{
+    PlayerFactionDepartment[playerid] = 0; PlayerFactionPosition[playerid] = 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT department_id,position_id FROM faction_assignments WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0;
+    if (db_num_rows(result) > 0)
+    {
+        PlayerFactionDepartment[playerid] = db_get_field_assoc_int(result, "department_id");
+        PlayerFactionPosition[playerid] = db_get_field_assoc_int(result, "position_id");
+    }
+    db_free_result(result); return 1;
+}
+
+stock AssignFactionRole(playerid, targetid, department, position)
+{
+    if (!IsFactionLeader(playerid)) { SendClientMessage(playerid, 0xFF5555FF, "Назначать подразделения и должности может только лидер фракции."); return 0; }
+    if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] ||
+        PlayerFaction[targetid] != PlayerFaction[playerid] || department < 1 || department > 3 || position < 1 || position > 3)
+    { SendClientMessage(playerid, 0xFFCC66FF, "Проверь игрока, подразделение и должность (значения 1-3)."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[256]; EscapeSQL(PlayerAccountName[targetid], safeName, sizeof safeName);
+    format(query, sizeof query, "INSERT OR REPLACE INTO faction_assignments (account_name,department_id,position_id) VALUES ('%s',%d,%d);", safeName, department, position);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
+    PlayerFactionDepartment[targetid] = department; PlayerFactionPosition[targetid] = position;
+    SendClientMessage(targetid, 0x65C9FFFF, "Тебе назначили новое подразделение и должность. Используй /frole.");
+    SendClientMessage(playerid, 0x65C9FFFF, "Назначение сохранено."); return 1;
+}
+
+stock ShowFactionRole(playerid)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE) { SendClientMessage(playerid, 0xFFCC66FF, "Ты не состоишь во фракции."); return 0; }
+    new department[48], position[32], msg[144];
+    GetFactionDepartmentName(PlayerFaction[playerid], PlayerFactionDepartment[playerid], department, sizeof department);
+    GetFactionPositionName(PlayerFactionPosition[playerid], position, sizeof position);
+    format(msg, sizeof msg, "Подразделение: %s | Должность: %s", department, position);
+    SendClientMessage(playerid, 0x65C9FFFF, msg);
+    if (PlayerFaction[playerid] == FACTION_POLICE)
+        SendClientMessage(playerid, 0xFFFFFFFF, "Обязанности: принимать обращения, помогать жителям и вести служебные записи.");
+    else if (PlayerFaction[playerid] == FACTION_MEDIC)
+        SendClientMessage(playerid, 0xFFFFFFFF, "Обязанности: координировать обращения, помогать посетителям и вести записи клиники.");
+    else
+        SendClientMessage(playerid, 0xFFFFFFFF, "Обязанности: консультировать жителей, оформлять документы и информировать о городских программах.");
+    return 1;
+}
+
 stock LoadPlayerFaction(playerid)
 {
     PlayerFaction[playerid] = FACTION_NONE; PlayerFactionRank[playerid] = 0; PlayerOnDuty[playerid] = false;
@@ -1144,7 +1208,7 @@ stock LoadPlayerFaction(playerid)
     format(query, sizeof query, "SELECT faction_id,faction_rank FROM player_factions WHERE account_name='%s' LIMIT 1;", safeName);
     new DBResult:result = db_query(gDatabase, query); if (!result) return 0;
     if (db_num_rows(result) > 0) { PlayerFaction[playerid] = db_get_field_assoc_int(result, "faction_id"); PlayerFactionRank[playerid] = db_get_field_assoc_int(result, "faction_rank"); }
-    db_free_result(result); return 1;
+    db_free_result(result); LoadFactionAssignment(playerid); return 1;
 }
 stock ShowPlayerFaction(playerid)
 {
