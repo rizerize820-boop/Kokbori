@@ -15,7 +15,7 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
     private Camera gameCamera;
     private RectTransform stickBase;
     private RectTransform stickKnob;
-    private const float MoveSpeed = 4.5f;
+    private const float MoveSpeed = 4.5f;\n    private KokboriVehicleController vehicle;\n    private float vehicleThrottle;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void StartPrototype()
@@ -150,6 +150,41 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
         label.alignment = TextAnchor.MiddleCenter;
         label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
         label.fontSize = 22;
+        label.color = Color.white;
+    }
+
+    private void SetThrottle(float value) => vehicleThrottle = value;
+
+    private void MakeActionButton(string textValue, Transform parent, Vector2 anchorMin,
+        Vector2 anchorMax, Vector2 size, Vector2 position, UnityEngine.Events.UnityAction action)
+    {
+        var rect = MakeUIRect(textValue, parent, anchorMin, anchorMax, size, position);
+        var image = rect.gameObject.AddComponent<Image>();
+        image.color = new Color(0.05f, 0.08f, 0.12f, 0.72f);
+        var button = rect.gameObject.AddComponent<Button>();
+        button.onClick.AddListener(action);
+        var caption = MakeUIRect("Label", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var label = caption.gameObject.AddComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        label.text = textValue;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.fontSize = 16;
+        label.color = Color.white;
+    }
+
+    private void MakeHoldButton(string textValue, Transform parent, Vector2 anchorMin,
+        Vector2 anchorMax, Vector2 size, Vector2 position, float value)
+    {
+        var rect = MakeUIRect(textValue, parent, anchorMin, anchorMax, size, position);
+        rect.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.08f, 0.12f, 0.72f);
+        var hold = rect.gameObject.AddComponent<KokboriHoldButton>();
+        hold.Initialize(() => SetThrottle(value), () => SetThrottle(0));
+        var caption = MakeUIRect("Label", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        var label = caption.gameObject.AddComponent<Text>();
+        label.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        label.text = textValue;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.fontSize = 16;
         label.color = Color.white;
     }
 
