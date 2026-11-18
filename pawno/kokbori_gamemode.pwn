@@ -279,7 +279,17 @@ public OnPlayerPickUpPickup(playerid, pickupid)
             for (new i = 1; i <= 5; i++) total += PlayerItemCount[playerid][i];
             if (total + amount > INVENTORY_SLOTS)
             {
-                SendClientMessage(playerid, 0xFFCC66FF, "Недостаточно места в инвентаре. Освободи слот и попробуй снова.");
+                new Float:dropX, Float:dropY, Float:dropZ;
+                GetPlayerPos(playerid, dropX, dropY, dropZ);
+                new restoredPickup = CreatePickup(1279, 1, dropX, dropY, dropZ - 0.5, GetPlayerVirtualWorld(playerid));
+                if (restoredPickup != INVALID_PICKUP) WorldItemPickup[slot] = restoredPickup;
+                else
+                {
+                    WorldItemPickup[slot] = 0;
+                    WorldItemType[slot] = 0;
+                    WorldItemAmount[slot] = 0;
+                }
+                SendClientMessage(playerid, 0xFFCC66FF, "Недостаточно места в инвентаре. Предмет оставлен на земле.");
                 return 1;
             }
             DestroyPickup(pickupid);
