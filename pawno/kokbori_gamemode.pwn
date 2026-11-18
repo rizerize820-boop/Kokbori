@@ -225,7 +225,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         }
         PlayerAge[playerid] = strval(inputtext);
         ShowPlayerDialog(playerid, DIALOG_CHAR_GENDER, DIALOG_STYLE_LIST,
-            "KOKBORI RP | Пол персонажа", "Мужской\\nЖенский", "Выбрать", "Назад");
+            "KOKBORI RP | Пол персонажа", "Мужской\nЖенский", "Выбрать", "Назад");
         return 1;
     }
 
