@@ -39,7 +39,7 @@ jobs:
       - name: Export mobile-friendly web build
         run: |
           mkdir -p Engine/build
-          godot --headless --path Engine --export-release "Web" Engine/build/index.html
+          godot --headless --path Engine --export-release "Web" build/index.html
 
       - name: Package web playtest
         run: |
