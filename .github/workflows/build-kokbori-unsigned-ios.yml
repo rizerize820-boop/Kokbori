@@ -1,4 +1,4 @@
-name: Build KOKBORI iOS (unsigned, no Team ID)
+name: Build KOKBORI game (iOS, unsigned IPA)
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  export-ios:
+  ios:
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -28,34 +28,54 @@ jobs:
           unzip -q "$RUNNER_TEMP/godot/export_templates.tpz" -d "$RUNNER_TEMP/godot/templates"
           cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/Library/Application Support/Godot/export_templates/4.3.stable/"
 
-      - name: Configure unsigned iOS export
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("Engine/export_presets.cfg")
-          s = p.read_text()
-          # Godot 4.3 refuses to generate an iOS export project when this field is empty.
-          # This placeholder is NOT a real Apple Team ID and is only for unsigned project generation.
-          s = s.replace('application/app_store_team_id="YOUR_10_CHARACTER_APPLE_TEAM_ID"', 'application/app_store_team_id="0000000000"')
-          s = s.replace('application/code_sign_identity_debug=""', 'application/code_sign_identity_debug=""')
-          s = s.replace('application/code_sign_identity_release=""', 'application/code_sign_identity_release=""')
-          s = s.replace('application/provisioning_profile_uuid_debug=""', 'application/provisioning_profile_uuid_debug=""')
-          s = s.replace('application/provisioning_profile_uuid_release=""', 'application/provisioning_profile_uuid_release=""')
-          p.write_text(s)
-          PY
-
-      - name: Import project and export unsigned Xcode project
+      - name: Import Godot project
         run: |
           set -eux
-          "/Applications/Godot.app/Contents/MacOS/Godot" --verbose --headless --editor --path Engine --quit 2>&1 | tee build-editor.log
-          mkdir -p build
-          "/Applications/Godot.app/Contents/MacOS/Godot" --verbose --headless --path Engine --export-debug "iOS" build/KOKBORI-iOS.zip 2>&1 | tee build-export.log
-          test -s build/KOKBORI-iOS.zip
+          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --editor --path Engine --quit
 
-      - name: Upload unsigned Xcode project
+      - name: Export Xcode project
+        run: |
+          set -eux
+          mkdir -p build/ios
+          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --verbose --path Engine --export-release "iOS" build/ios/KOKBORI-iOS.zip
+          test -s build/ios/KOKBORI-iOS.zip
+          mkdir -p build/ios/project
+          unzip -q build/ios/KOKBORI-iOS.zip -d build/ios/project
+          find build/ios/project -maxdepth 3 -name "*.xcodeproj" -print
+
+      - name: Build Xcode project without signing
+        run: |
+          set -eux
+          PROJECT=$(find build/ios/project -maxdepth 4 -name "*.xcodeproj" -print -quit)
+          test -n "$PROJECT"
+          INFO=$(xcodebuild -list -json -project "$PROJECT")
+          SCHEME=$(printf '%s' "$INFO" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["project"]["schemes"][0])')
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/ios/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Package unsigned IPA
+        run: |
+          set -eux
+          APP=$(find build/ios/dd/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" -print -quit)
+          test -n "$APP"
+          mkdir -p build/ios/Payload
+          cp -R "$APP" build/ios/Payload/
+          cd build/ios
+          zip -qr "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa" Payload
+          test -s "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa"
+
+      - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: KOKBORI-iOS-unsigned-Xcode-project
-          path: build/KOKBORI-iOS.zip
+          name: KOKBORI-iOS-unsigned-IPA
+          path: KOKBORI-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
