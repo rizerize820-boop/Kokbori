@@ -47,6 +47,14 @@ jobs:
           godot --headless --path Engine --export-release "Web" site/index.html
           touch site/.nojekyll
 
+      - name: Upload downloadable browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-Web-Playtest
+          path: site
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
