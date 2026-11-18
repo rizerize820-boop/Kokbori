@@ -555,7 +555,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp");
         return 1;
     }
 
@@ -640,6 +640,34 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/buybiz", true)) { BuyPlayerBusiness(playerid); return 1; }
     if (!strcmp(cmdtext, "/biz", true)) { ShowPlayerBusiness(playerid); return 1; }
     if (!strcmp(cmdtext, "/bizcollect", true)) { CollectBusinessIncome(playerid); return 1; }
+    if (!strncmp(cmdtext, "/kickid ", 8, true))
+    {
+        if (PlayerAdminLevel[playerid] < 1) { SendClientMessage(playerid, 0xFF5555FF, "Нет доступа."); return 1; }
+        new targetid = strval(cmdtext[8]);
+        if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid]) { SendClientMessage(playerid, 0xFFCC66FF, "Неверный ID игрока."); return 1; }
+        LogAdminAction(playerid, "kick", PlayerAccountName[targetid], "Администраторское исключение");
+        SendClientMessage(targetid, 0xFF5555FF, "Ты был отключён администрацией.");
+        Kick(targetid);
+        return 1;
+    }
+    if (!strncmp(cmdtext, "/setcash ", 9, true))
+    {
+        if (PlayerAdminLevel[playerid] < 2) { SendClientMessage(playerid, 0xFF5555FF, "Требуется уровень администратора 2."); return 1; }
+        new split = strfind(cmdtext[9], " ", true);
+        if (split < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Формат: /setcash ID сумма"); return 1; }
+        new targetText[12], amountText[16];
+        strmid(targetText, cmdtext, 9, 9 + split, sizeof targetText);
+        strmid(amountText, cmdtext, 10 + split, strlen(cmdtext), sizeof amountText);
+        if (!IsNumericString(targetText) || !IsNumericString(amountText)) { SendClientMessage(playerid, 0xFFCC66FF, "ID и сумма должны быть числами."); return 1; }
+        new targetid = strval(targetText), amount = strval(amountText);
+        if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] || amount < 0 || amount > 100000000) { SendClientMessage(playerid, 0xFFCC66FF, "Проверь ID и сумму (0-100000000)."); return 1; }
+        PlayerMoney[targetid] = amount; ResetPlayerMoney(targetid); GivePlayerMoney(targetid, amount); SavePlayerCash(targetid);
+        LogAdminAction(playerid, "setcash", PlayerAccountName[targetid], amountText);
+        SendClientMessage(playerid, 0x65C9FFFF, "Баланс игрока обновлён.");
+        SendClientMessage(targetid, 0x65C9FFFF, "Администратор изменил твой баланс.");
+        return 1;
+    }
+
     if (!strcmp(cmdtext, "/adminhelp", true))
     {
         if (PlayerAdminLevel[playerid] < 1) SendClientMessage(playerid, 0xFF5555FF, "Нет доступа.");
@@ -798,6 +826,20 @@ stock CollectBusinessIncome(playerid)
     PlayerBusinessLastCollect[playerid]=now; PlayerMoney[playerid]+=BUSINESS_PAYOUT; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,BUSINESS_PAYOUT); SavePlayerCash(playerid);
     SendClientMessage(playerid,0x65C9FFFF,"Доход бизнеса: +2500 KZT."); return 1;
 }
+stock LogAdminAction(playerid, const action[], const targetName[], const details[])
+{
+    if (gDatabase == DB:0) return 0;
+    new safeAdmin[(MAX_PLAYER_NAME * 2) + 1], safeTarget[(MAX_PLAYER_NAME * 2) + 1], safeDetails[128], query[384];
+    EscapeSQL(PlayerAccountName[playerid], safeAdmin, sizeof safeAdmin);
+    EscapeSQL(targetName, safeTarget, sizeof safeTarget);
+    EscapeSQL(details, safeDetails, sizeof safeDetails);
+    format(query, sizeof query, "INSERT INTO admin_logs (admin_name,action,target_name,details) VALUES ('%s','%s','%s','%s');", safeAdmin, action, safeTarget, safeDetails);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
 stock LoadPlayerAdmin(playerid)
 {
     PlayerAdminLevel[playerid]=0; new safeName[(MAX_PLAYER_NAME * 2) + 1],query[192]; EscapeSQL(PlayerAccountName[playerid],safeName,sizeof safeName);
