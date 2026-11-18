@@ -648,15 +648,15 @@ public OnPlayerCommandText(playerid, cmdtext[])
     }
 
     if (!strcmp(cmdtext, "/inv", true)) { ShowPlayerInventory(playerid); return 1; }
-    if (!strncmp(cmdtext, "/buyitem ", 9, true)) { BuyInventoryItem(playerid, strval(cmdtext[9])); return 1; }
-    if (!strncmp(cmdtext, "/useitem ", 9, true)) { UseInventoryItem(playerid, strval(cmdtext[9])); return 1; }
+    if (!strcmp(cmdtext, "/buyitem ", true, 9)) { BuyInventoryItem(playerid, strval(cmdtext[9])); return 1; }
+    if (!strcmp(cmdtext, "/useitem ", true, 9)) { UseInventoryItem(playerid, strval(cmdtext[9])); return 1; }
     if (!strcmp(cmdtext, "/buyhouse", true)) { BuyPlayerHouse(playerid); return 1; }
     if (!strcmp(cmdtext, "/house", true)) { EnterPlayerHouse(playerid); return 1; }
     if (!strcmp(cmdtext, "/sellhouse", true)) { SellPlayerHouse(playerid); return 1; }
     if (!strcmp(cmdtext, "/buybiz", true)) { BuyPlayerBusiness(playerid); return 1; }
     if (!strcmp(cmdtext, "/biz", true)) { ShowPlayerBusiness(playerid); return 1; }
     if (!strcmp(cmdtext, "/bizcollect", true)) { CollectBusinessIncome(playerid); return 1; }
-    if (!strncmp(cmdtext, "/kickid ", 8, true))
+    if (!strcmp(cmdtext, "/kickid ", true, 8))
     {
         if (PlayerAdminLevel[playerid] < 1) { SendClientMessage(playerid, 0xFF5555FF, "Нет доступа."); return 1; }
         new targetid = strval(cmdtext[8]);
@@ -666,7 +666,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
         Kick(targetid);
         return 1;
     }
-    if (!strncmp(cmdtext, "/setcash ", 9, true))
+    if (!strcmp(cmdtext, "/setcash ", true, 9))
     {
         if (PlayerAdminLevel[playerid] < 2) { SendClientMessage(playerid, 0xFF5555FF, "Требуется уровень администратора 2."); return 1; }
         new split = strfind(cmdtext[9], " ", true);
@@ -685,9 +685,9 @@ public OnPlayerCommandText(playerid, cmdtext[])
     }
 
     if (!strcmp(cmdtext, "/faction", true)) { ShowPlayerFaction(playerid); return 1; }
-    if (!strncmp(cmdtext, "/joinfaction ", 13, true)) { JoinPlayerFaction(playerid, strval(cmdtext[13])); return 1; }
+    if (!strcmp(cmdtext, "/joinfaction ", true, 13)) { JoinPlayerFaction(playerid, strval(cmdtext[13])); return 1; }
     if (!strcmp(cmdtext, "/leavefaction", true)) { LeavePlayerFaction(playerid); return 1; }
-    if (!strncmp(cmdtext, "/fchat ", 7, true)) { SendFactionMessage(playerid, cmdtext[7]); return 1; }
+    if (!strcmp(cmdtext, "/fchat ", true, 7)) { SendFactionMessage(playerid, cmdtext[7]); return 1; }
     if (!strcmp(cmdtext, "/duty", true)) { TogglePlayerDuty(playerid); return 1; }
 
     if (!strcmp(cmdtext, "/adminhelp", true))
