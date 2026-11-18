@@ -38,14 +38,14 @@ jobs:
 
       - name: Export mobile-friendly web build
         run: |
-          mkdir -p build
+          mkdir -p Engine/build
           godot --headless --path Engine --export-release "Web" Engine/build/index.html
 
       - name: Package web playtest
         run: |
-          test -f build/index.html
+          test -f Engine/build/index.html
           cd Engine/build
-          zip -qr ../KOKBORI-Web-Playtest.zip .
+          zip -qr ../../KOKBORI-Web-Playtest.zip .
 
       - name: Upload web playtest
         uses: actions/upload-artifact@v4
