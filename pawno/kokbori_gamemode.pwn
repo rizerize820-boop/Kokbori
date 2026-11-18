@@ -62,6 +62,13 @@ new PlayerBusinessLastCollect[MAX_PLAYERS];
 new PlayerFaction[MAX_PLAYERS];
 new PlayerFactionRank[MAX_PLAYERS];
 new bool:PlayerOnDuty[MAX_PLAYERS];
+new bool:PlayerHasSavedPosition[MAX_PLAYERS];
+new Float:PlayerSavedX[MAX_PLAYERS];
+new Float:PlayerSavedY[MAX_PLAYERS];
+new Float:PlayerSavedZ[MAX_PLAYERS];
+new Float:PlayerSavedAngle[MAX_PLAYERS];
+new PlayerSavedInterior[MAX_PLAYERS];
+new PlayerSavedWorld[MAX_PLAYERS];
 
 forward KickPlayerLater(playerid);
 
@@ -136,6 +143,7 @@ public OnGameModeInit()
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_accounts (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, level INTEGER NOT NULL DEFAULT 0);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_name TEXT NOT NULL, action TEXT NOT NULL, target_name TEXT NOT NULL DEFAULT '', details TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_factions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, faction_rank INTEGER NOT NULL DEFAULT 1);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_positions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, angle REAL NOT NULL, interior INTEGER NOT NULL DEFAULT 0, world INTEGER NOT NULL DEFAULT 0);");
     LoadOwnedVehicles();
     db_query(gDatabase,
         "CREATE TABLE IF NOT EXISTS player_work ("
@@ -173,6 +181,13 @@ public OnPlayerConnect(playerid)
     PlayerFaction[playerid] = FACTION_NONE;
     PlayerFactionRank[playerid] = 0;
     PlayerOnDuty[playerid] = false;
+    PlayerHasSavedPosition[playerid] = false;
+    PlayerSavedX[playerid] = KOKBORI_SPAWN_X;
+    PlayerSavedY[playerid] = KOKBORI_SPAWN_Y;
+    PlayerSavedZ[playerid] = KOKBORI_SPAWN_Z;
+    PlayerSavedAngle[playerid] = KOKBORI_SPAWN_A;
+    PlayerSavedInterior[playerid] = 0;
+    PlayerSavedWorld[playerid] = 0;
     for (new item = 0; item < 6; item++) PlayerItemCount[playerid][item] = 0;
     PlayerFirstName[playerid][0] = '\0';
     PlayerLastName[playerid][0] = '\0';
@@ -227,6 +242,7 @@ public OnPlayerDisconnect(playerid, reason)
     if (PlayerLoggedIn[playerid] && gDatabase != DB:0)
     {
         SaveBankBalance(playerid);
+        SavePlayerPosition(playerid);
         new ownedVehicle = FindPlayerVehicle(playerid);
         if (ownedVehicle != 0) SaveOwnedVehicle(ownedVehicle);
         new safeName[(MAX_PLAYER_NAME * 2) + 1];
@@ -259,8 +275,21 @@ public OnPlayerSpawn(playerid)
     }
 
     SetPlayerSkin(playerid, PlayerSkin[playerid]);
-    SetPlayerPos(playerid, KOKBORI_SPAWN_X, KOKBORI_SPAWN_Y, KOKBORI_SPAWN_Z);
-    SetPlayerFacingAngle(playerid, KOKBORI_SPAWN_A);
+    if (PlayerHasSavedPosition[playerid])
+    {
+        SetPlayerInterior(playerid, PlayerSavedInterior[playerid]);
+        SetPlayerVirtualWorld(playerid, PlayerSavedWorld[playerid]);
+        SetPlayerPos(playerid, PlayerSavedX[playerid], PlayerSavedY[playerid], PlayerSavedZ[playerid]);
+        SetPlayerFacingAngle(playerid, PlayerSavedAngle[playerid]);
+        PlayerHasSavedPosition[playerid] = false;
+    }
+    else
+    {
+        SetPlayerInterior(playerid, 0);
+        SetPlayerVirtualWorld(playerid, 0);
+        SetPlayerPos(playerid, KOKBORI_SPAWN_X, KOKBORI_SPAWN_Y, KOKBORI_SPAWN_Z);
+        SetPlayerFacingAngle(playerid, KOKBORI_SPAWN_A);
+    }
     ResetPlayerMoney(playerid);
     GivePlayerMoney(playerid, PlayerMoney[playerid]);
     return 1;
@@ -1159,6 +1188,53 @@ stock SellPlayerVehicle(playerid)
     return 1;
 }
 
+
+stock SavePlayerPosition(playerid)
+{
+    if (gDatabase == DB:0 || !PlayerLoggedIn[playerid]) return 0;
+    new Float:x, Float:y, Float:z, Float:angle;
+    GetPlayerPos(playerid, x, y, z);
+    GetPlayerFacingAngle(playerid, angle);
+    new interior = GetPlayerInterior(playerid);
+    new world = GetPlayerVirtualWorld(playerid);
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[320];
+    format(query, sizeof query,
+        "INSERT OR REPLACE INTO player_positions (account_name, x, y, z, angle, interior, world) VALUES ('%s', %f, %f, %f, %f, %d, %d);",
+        safeName, x, y, z, angle, interior, world);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
+stock LoadPlayerPosition(playerid)
+{
+    PlayerHasSavedPosition[playerid] = false;
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[224];
+    format(query, sizeof query,
+        "SELECT x, y, z, angle, interior, world FROM player_positions WHERE account_name='%s' LIMIT 1;",
+        safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    if (db_num_rows(result) > 0)
+    {
+        PlayerSavedX[playerid] = db_get_field_assoc_float(result, "x");
+        PlayerSavedY[playerid] = db_get_field_assoc_float(result, "y");
+        PlayerSavedZ[playerid] = db_get_field_assoc_float(result, "z");
+        PlayerSavedAngle[playerid] = db_get_field_assoc_float(result, "angle");
+        PlayerSavedInterior[playerid] = db_get_field_assoc_int(result, "interior");
+        PlayerSavedWorld[playerid] = db_get_field_assoc_int(result, "world");
+        PlayerHasSavedPosition[playerid] = true;
+    }
+    db_free_result(result);
+    return 1;
+}
+
 stock SavePlayerCash(playerid)
 {
     if (gDatabase == DB:0) return 0;
@@ -1365,6 +1441,7 @@ stock CompleteLogin(playerid)
     LoadPlayerProperties(playerid);
     LoadPlayerAdmin(playerid);
     LoadPlayerFaction(playerid);
+    LoadPlayerPosition(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     new query[192];
