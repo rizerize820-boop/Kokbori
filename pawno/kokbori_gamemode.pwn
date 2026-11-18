@@ -238,6 +238,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
                 "Введи ID игрока и сумму через пробел. Пример: 4 1500",
                 "Перевести", "Назад");
         }
+        else if (listitem == 4)
+        {
+            ShowBankHistory(playerid);
+        }
         return 1;
     }
 
@@ -519,7 +523,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/stats", true))
     {
         new msg[144];
-        format(msg, sizeof msg, "%s %s | Возраст: %d | Баланс: %d KZT", PlayerFirstName[playerid], PlayerLastName[playerid], PlayerAge[playerid], PlayerMoney[playerid]);
+        format(msg, sizeof msg, "%s %s | Возраст: %d | Наличные: %d | Банк: %d KZT", PlayerFirstName[playerid], PlayerLastName[playerid], PlayerAge[playerid], PlayerMoney[playerid], PlayerBankMoney[playerid]);
         SendClientMessage(playerid, 0xFFFFFFFF, msg);
         return 1;
     }
@@ -535,6 +539,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/bank", true))
     {
         ShowBankDialog(playerid);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/bankhistory", true))
+    {
+        ShowBankHistory(playerid);
         return 1;
     }
 
@@ -582,11 +592,50 @@ public OnPlayerCommandText(playerid, cmdtext[])
     return 0;
 }
 
+stock ShowBankHistory(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[224];
+    format(query, sizeof query,
+        "SELECT action, amount, other_account, created_at FROM bank_transactions WHERE account_name='%s' ORDER BY id DESC LIMIT 5;", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Не удалось загрузить историю операций.");
+        return 0;
+    }
+    if (db_num_rows(result) == 0)
+    {
+        SendClientMessage(playerid, 0xFFFFFFFF, "Банковских операций пока нет.");
+        db_free_result(result);
+        return 1;
+    }
+    SendClientMessage(playerid, 0x65C9FFFF, "Последние 5 банковских операций:");
+    do
+    {
+        new action[24], other[25], created[24], row[144];
+        db_get_field_assoc(result, "action", action, sizeof action);
+        db_get_field_assoc(result, "other_account", other, sizeof other);
+        db_get_field_assoc(result, "created_at", created, sizeof created);
+        new amount = db_get_field_assoc_int(result, "amount");
+        if (other[0] != '\0')
+            format(row, sizeof row, "%s: %d KZT | %s | %s", action, amount, other, created);
+        else
+            format(row, sizeof row, "%s: %d KZT | %s", action, amount, created);
+        SendClientMessage(playerid, 0xFFFFFFFF, row);
+    }
+    while (db_next_row(result));
+    db_free_result(result);
+    return 1;
+}
+
 stock ShowBankDialog(playerid)
 {
     ShowPlayerDialog(playerid, DIALOG_BANK, DIALOG_STYLE_LIST,
         "KOKBORI BANK | Astana",
-        "Проверить баланс\nПоложить наличные\nСнять деньги\nПеревести игроку",
+        "Проверить баланс\nПоложить наличные\nСнять деньги\nПеревести игроку\nИстория операций",
         "Выбрать", "Закрыть");
     return 1;
 }
