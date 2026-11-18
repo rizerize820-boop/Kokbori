@@ -99,6 +99,11 @@ public OnGameModeInit()
         "other_account TEXT NOT NULL DEFAULT '',"
         "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
         ");");
+    db_query(gDatabase,
+        "CREATE TABLE IF NOT EXISTS player_work ("
+        "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
+        "last_work INTEGER NOT NULL DEFAULT 0"
+        ");");
 
     print("[KOKBORI] Gamemode and SQLite account database loaded.");
     print("[KOKBORI] Unity networking requires a separate gateway adapter.");
@@ -564,17 +569,25 @@ public OnPlayerCommandText(playerid, cmdtext[])
                 "Сначала выбери работу командой /job.");
             return 1;
         }
-        new now = GetTickCount();
-        if (PlayerLastWork[playerid] != 0 && now - PlayerLastWork[playerid] < WORK_COOLDOWN_MS)
+        new now = gettime();
+        if (PlayerLastWork[playerid] != 0 && now - PlayerLastWork[playerid] < 60)
         {
-            new secondsLeft = (WORK_COOLDOWN_MS - (now - PlayerLastWork[playerid])) / 1000;
+            new secondsLeft = 60 - (now - PlayerLastWork[playerid]);
             new waitMsg[80];
             format(waitMsg, sizeof waitMsg, "Следующая смена будет доступна через %d сек.", secondsLeft);
             SendClientMessage(playerid, 0xFFCC66FF, waitMsg);
             return 1;
         }
         PlayerLastWork[playerid] = now;
-        new reward = 300 + random(201);
+        SavePlayerWork(playerid);
+        new reward;
+        switch (PlayerJob[playerid])
+        {
+            case 1: reward = 350 + random(151);
+            case 2: reward = 400 + random(201);
+            case 3: reward = 450 + random(201);
+            default: reward = 300;
+        }
         PlayerMoney[playerid] += reward;
         GivePlayerMoney(playerid, reward);
         new workMsg[96];
@@ -692,6 +705,38 @@ stock LogBankTransaction(playerid, const action[], amount, const otherAccount[])
     return 1;
 }
 
+stock SavePlayerWork(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[192];
+    format(query, sizeof query,
+        "INSERT OR REPLACE INTO player_work (account_name, last_work) VALUES ('%s', %d);",
+        safeName, PlayerLastWork[playerid]);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
+stock LoadPlayerWork(playerid)
+{
+    PlayerLastWork[playerid] = 0;
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    new query[192];
+    format(query, sizeof query,
+        "SELECT last_work FROM player_work WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    if (db_num_rows(result) > 0)
+        PlayerLastWork[playerid] = db_get_field_assoc_int(result, "last_work");
+    db_free_result(result);
+    return 1;
+}
+
 stock SavePlayerJob(playerid)
 {
     if (gDatabase == DB:0) return 0;
@@ -748,6 +793,7 @@ stock CompleteLogin(playerid)
     PlayerLoggedIn[playerid] = true;
     LoadPlayerJob(playerid);
     LoadBankBalance(playerid);
+    LoadPlayerWork(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     new query[192];
