@@ -75,6 +75,7 @@ new WorldItemType[MAX_WORLD_ITEM_PICKUPS];
 new WorldItemAmount[MAX_WORLD_ITEM_PICKUPS];
 
 forward KickPlayerLater(playerid);
+forward FactionSalaryTick();
 
 public OnGameModeInit()
 {
@@ -154,6 +155,8 @@ public OnGameModeInit()
         "account_name TEXT NOT NULL COLLATE NOCASE UNIQUE,"
         "last_work INTEGER NOT NULL DEFAULT 0"
         ");");
+
+    SetTimer("FactionSalaryTick", 600000, true);
 
     print("[KOKBORI] Gamemode and SQLite account database loaded.");
     print("[KOKBORI] Unity networking requires a separate gateway adapter.");
@@ -644,7 +647,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty /frankup ID /frankdown ID /setfrank ID RANK /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
         return 1;
     }
 
@@ -786,6 +789,24 @@ public OnPlayerCommandText(playerid, cmdtext[])
     }
 
     if (!strcmp(cmdtext, "/faction", true)) { ShowPlayerFaction(playerid); return 1; }
+    if (!strcmp(cmdtext, "/frankup ", true, 9)) { ChangeFactionRank(playerid, strval(cmdtext[9]), 1); return 1; }
+    if (!strcmp(cmdtext, "/frankdown ", true, 11)) { ChangeFactionRank(playerid, strval(cmdtext[11]), -1); return 1; }
+    if (!strcmp(cmdtext, "/setfrank ", true, 10))
+    {
+        new split = strfind(cmdtext, " ", true, 10);
+        if (split == -1) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /setfrank ID RANK (админ 3+)."); return 1; }
+        new targetid = strval(cmdtext[10]);
+        new rank = strval(cmdtext[split + 1]);
+        if (PlayerAdminLevel[playerid] < 3) { SendClientMessage(playerid, 0xFF5555FF, "Нужен уровень администратора 3+."); return 1; }
+        if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] || PlayerFaction[targetid] == FACTION_NONE || rank < 1 || rank > 5)
+        { SendClientMessage(playerid, 0xFFCC66FF, "Проверь ID игрока и ранг (1-5)."); return 1; }
+        SetFactionRank(targetid, rank);
+        new targetName[MAX_PLAYER_NAME + 1], details[64]; GetPlayerName(targetid, targetName, sizeof targetName);
+        format(details, sizeof details, "Faction rank set to %d", rank);
+        LogAdminAction(playerid, "setfactionrank", targetName, details);
+        SendClientMessage(playerid, 0x65C9FFFF, "Ранг фракции изменён.");
+        return 1;
+    }
     if (!strcmp(cmdtext, "/joinfaction ", true, 13)) { JoinPlayerFaction(playerid, strval(cmdtext[13])); return 1; }
     if (!strcmp(cmdtext, "/leavefaction", true)) { LeavePlayerFaction(playerid); return 1; }
     if (!strcmp(cmdtext, "/fchat ", true, 7)) { SendFactionMessage(playerid, cmdtext[7]); return 1; }
@@ -1043,6 +1064,55 @@ stock CollectBusinessIncome(playerid)
     new DBResult:result=db_query(gDatabase,query); if(!result) return 0; db_free_result(result);
     PlayerBusinessLastCollect[playerid]=now; PlayerMoney[playerid]+=BUSINESS_PAYOUT; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,BUSINESS_PAYOUT); SavePlayerCash(playerid);
     SendClientMessage(playerid,0x65C9FFFF,"Доход бизнеса: +2500 KZT."); return 1;
+}
+
+stock SetFactionRank(playerid, rank)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE || rank < 1 || rank > 5) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "UPDATE player_factions SET faction_rank=%d WHERE account_name='%s';", rank, safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    PlayerFactionRank[playerid] = rank;
+    return 1;
+}
+
+stock ChangeFactionRank(playerid, targetid, direction)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE || PlayerFactionRank[playerid] != 5)
+    { SendClientMessage(playerid, 0xFF5555FF, "Повышать и понижать ранги может только лидер фракции (ранг 5)."); return 0; }
+    if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] ||
+        targetid == playerid || PlayerFaction[targetid] != PlayerFaction[playerid])
+    { SendClientMessage(playerid, 0xFFCC66FF, "Игрок должен быть в сети и состоять в твоей фракции."); return 0; }
+    new newRank = PlayerFactionRank[targetid] + direction;
+    if (newRank < 1 || newRank > 4)
+    { SendClientMessage(playerid, 0xFFCC66FF, "Ранг участника должен оставаться в диапазоне 1-4."); return 0; }
+    if (!SetFactionRank(targetid, newRank))
+    { SendClientMessage(playerid, 0xFF5555FF, "Не удалось сохранить ранг в базе."); return 0; }
+    new msg[96]; format(msg, sizeof msg, "Твой ранг фракции изменён на %d.", newRank);
+    SendClientMessage(targetid, 0x65C9FFFF, msg);
+    SendClientMessage(playerid, 0x65C9FFFF, "Ранг участника обновлён.");
+    return 1;
+}
+
+public FactionSalaryTick()
+{
+    if (gDatabase == DB:0) return 0;
+    for (new i = 0; i < MAX_PLAYERS; i++)
+    {
+        if (!IsPlayerConnected(i) || !PlayerLoggedIn[i] || !PlayerOnDuty[i] ||
+            PlayerFaction[i] == FACTION_NONE || PlayerFactionRank[i] < 1 || PlayerFactionRank[i] > 5) continue;
+        new salary = PlayerFactionRank[i] * 200;
+        PlayerMoney[i] += salary;
+        ResetPlayerMoney(i);
+        GivePlayerMoney(i, PlayerMoney[i]);
+        SavePlayerCash(i);
+        new msg[80]; format(msg, sizeof msg, "Зарплата за службу: +%d KZT.", salary);
+        SendClientMessage(i, 0x65C9FFFF, msg);
+    }
+    return 1;
 }
 
 stock LoadPlayerFaction(playerid)
