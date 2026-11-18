@@ -77,7 +77,14 @@ jobs:
         run: |
           set -eux
           mkdir -p build/ios
-          "/Applications/Godot.app/Contents/MacOS/Godot" --headless --verbose --path Engine --export-release "iOS" build/ios/KOKBORI-iOS.zip
+          set -o pipefail
+          if ! "/Applications/Godot.app/Contents/MacOS/Godot" --headless --verbose --path Engine --export-release "iOS" build/ios/KOKBORI-iOS.zip 2>&1 | tee build/ios/godot-export.log; then
+            echo "=== Godot export failed; relevant diagnostics ==="
+            grep -Ein -C 3 "error|warning|team|template|ETC2|ASTC|export" build/ios/godot-export.log || true
+            echo "=== Full export log ==="
+            cat build/ios/godot-export.log
+            exit 1
+          fi
           test -s build/ios/KOKBORI-iOS.zip
           mkdir -p build/ios/project
           unzip -q build/ios/KOKBORI-iOS.zip -d build/ios/project
