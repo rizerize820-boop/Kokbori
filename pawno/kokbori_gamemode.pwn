@@ -712,15 +712,16 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
     if (!strcmp(cmdtext, "/giveitem ", true, 10))
     {
-        new firstSpace = strfind(cmdtext[10], " ", true);
-        if (firstSpace < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
-        new secondStart = 10 + firstSpace + 1;
-        new secondSpace = strfind(cmdtext[secondStart], " ", true);
-        if (secondSpace < 1) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
+        new firstSpace = strfind(cmdtext, " ", true, 10);
+        if (firstSpace < 11) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
+        new amountStart = firstSpace + 1;
+        new secondSpace = strfind(cmdtext, " ", true, amountStart);
+        if (secondSpace <= amountStart) { SendClientMessage(playerid, 0xFFCC66FF, "Использование: /giveitem ID_предмета количество ID_игрока."); return 1; }
+        new targetStart = secondSpace + 1;
         new itemText[8], amountText[8], targetText[8];
-        strmid(itemText, cmdtext, 10, 10 + firstSpace, sizeof itemText);
-        strmid(amountText, cmdtext, secondStart, secondStart + secondSpace, sizeof amountText);
-        strmid(targetText, cmdtext, secondStart + secondSpace + 1, strlen(cmdtext), sizeof targetText);
+        strmid(itemText, cmdtext, 10, firstSpace, sizeof itemText);
+        strmid(amountText, cmdtext, amountStart, secondSpace, sizeof amountText);
+        strmid(targetText, cmdtext, targetStart, strlen(cmdtext), sizeof targetText);
         if (!IsNumericString(itemText) || !IsNumericString(amountText) || !IsNumericString(targetText))
         {
             SendClientMessage(playerid, 0xFFCC66FF, "ID предмета, количество и ID игрока должны быть числами.");
