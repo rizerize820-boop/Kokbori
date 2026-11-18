@@ -119,6 +119,15 @@ jobs:
           zip -qr "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa" Payload
           test -s "$GITHUB_WORKSPACE/KOKBORI-unsigned.ipa"
 
+      - name: Upload Godot export diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-iOS-build-diagnostics
+          path: build/ios/godot-export.log
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
