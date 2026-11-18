@@ -57,7 +57,7 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (player == null || gameCamera == null) return;
+        if (player == null || gameCamera == null || (vehicle != null && vehicle.IsDriving)) return;
         Vector3 desired = player.position + player.rotation * new Vector3(0, 3.8f, -6.2f);
         gameCamera.transform.position = Vector3.Lerp(gameCamera.transform.position, desired, 8f * Time.deltaTime);
         gameCamera.transform.LookAt(player.position + Vector3.up * 1.35f);
