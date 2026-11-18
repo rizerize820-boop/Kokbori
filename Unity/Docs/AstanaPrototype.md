@@ -10,7 +10,10 @@ This branch contains a runtime-generated Unity greybox. It is a development prot
 - Street lamps, low-poly trees and an original landmark silhouette.
 - A custom low-poly sedan with basic arcade driving.
 - Third-person character movement and a follow camera.
-- Mobile joystick, gas, brake and enter/exit controls.
+- Mobile joystick, gas, brake, enter/exit and shop interaction controls.
+- Eight capsule pedestrians walking between simple waypoints.
+- A placeholder city bus following a rectangular route.
+- A mini-market interaction zone with a mobile **SHOP** button.
 
 ## Controls
 
@@ -26,6 +29,7 @@ This branch contains a runtime-generated Unity greybox. It is a development prot
 - The sedan now uses a custom low-poly mesh plus primitive detail parts; it is still a placeholder, not a production vehicle model.
 - Vehicle movement has no wheel physics, traffic, collision damage, fuel, or multiplayer synchronization.
 - No CRMP/Black Russia server compatibility, accounts, economy, missions, or production assets are included.
+- Pedestrians, bus and shop are greybox placeholders; there is no passenger boarding, NPC dialogue, shop inventory or economy.
 - The scripts have been committed to GitHub but have not yet been compiled or run in Unity in this workflow.
 
 ## Unity setup
