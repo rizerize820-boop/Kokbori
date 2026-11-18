@@ -35,6 +35,10 @@
 #define BUSINESS_PRICE (500000)
 #define BUSINESS_PAYOUT (2500)
 #define BUSINESS_COOLDOWN (1800)
+#define FACTION_NONE (0)
+#define FACTION_POLICE (1)
+#define FACTION_MEDIC (2)
+#define FACTION_GOVERNMENT (3)
 
 new DB:gDatabase;
 new PlayerMoney[MAX_PLAYERS];
@@ -55,6 +59,9 @@ new PlayerItemCount[MAX_PLAYERS][6];
 new PlayerHouseOwned[MAX_PLAYERS];
 new PlayerBusinessOwned[MAX_PLAYERS];
 new PlayerBusinessLastCollect[MAX_PLAYERS];
+new PlayerFaction[MAX_PLAYERS];
+new PlayerFactionRank[MAX_PLAYERS];
+new bool:PlayerOnDuty[MAX_PLAYERS];
 
 forward KickPlayerLater(playerid);
 
@@ -128,6 +135,7 @@ public OnGameModeInit()
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_businesses (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, price INTEGER NOT NULL, last_collect INTEGER NOT NULL DEFAULT 0);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_accounts (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, level INTEGER NOT NULL DEFAULT 0);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_name TEXT NOT NULL, action TEXT NOT NULL, target_name TEXT NOT NULL DEFAULT '', details TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_factions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, faction_rank INTEGER NOT NULL DEFAULT 1);");
     LoadOwnedVehicles();
     db_query(gDatabase,
         "CREATE TABLE IF NOT EXISTS player_work ("
@@ -158,6 +166,14 @@ public OnPlayerConnect(playerid)
     BankAction[playerid] = 0;
     PlayerJob[playerid] = 0;
     PlayerLastWork[playerid] = 0;
+    PlayerAdminLevel[playerid] = 0;
+    PlayerHouseOwned[playerid] = 0;
+    PlayerBusinessOwned[playerid] = 0;
+    PlayerBusinessLastCollect[playerid] = 0;
+    PlayerFaction[playerid] = FACTION_NONE;
+    PlayerFactionRank[playerid] = 0;
+    PlayerOnDuty[playerid] = false;
+    for (new item = 0; item < 6; item++) PlayerItemCount[playerid][item] = 0;
     PlayerFirstName[playerid][0] = '\0';
     PlayerLastName[playerid][0] = '\0';
     PlayerAge[playerid] = 18;
@@ -555,7 +571,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /joinfaction ID /leavefaction /fchat TEXT /duty");
         return 1;
     }
 
@@ -667,6 +683,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
         SendClientMessage(targetid, 0x65C9FFFF, "Администратор изменил твой баланс.");
         return 1;
     }
+
+    if (!strcmp(cmdtext, "/faction", true)) { ShowPlayerFaction(playerid); return 1; }
+    if (!strncmp(cmdtext, "/joinfaction ", 13, true)) { JoinPlayerFaction(playerid, strval(cmdtext[13])); return 1; }
+    if (!strcmp(cmdtext, "/leavefaction", true)) { LeavePlayerFaction(playerid); return 1; }
+    if (!strncmp(cmdtext, "/fchat ", 7, true)) { SendFactionMessage(playerid, cmdtext[7]); return 1; }
+    if (!strcmp(cmdtext, "/duty", true)) { TogglePlayerDuty(playerid); return 1; }
 
     if (!strcmp(cmdtext, "/adminhelp", true))
     {
@@ -826,6 +848,61 @@ stock CollectBusinessIncome(playerid)
     PlayerBusinessLastCollect[playerid]=now; PlayerMoney[playerid]+=BUSINESS_PAYOUT; ResetPlayerMoney(playerid); GivePlayerMoney(playerid,BUSINESS_PAYOUT); SavePlayerCash(playerid);
     SendClientMessage(playerid,0x65C9FFFF,"Доход бизнеса: +2500 KZT."); return 1;
 }
+
+stock LoadPlayerFaction(playerid)
+{
+    PlayerFaction[playerid] = FACTION_NONE; PlayerFactionRank[playerid] = 0; PlayerOnDuty[playerid] = false;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT faction_id,faction_rank FROM player_factions WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0;
+    if (db_num_rows(result) > 0) { PlayerFaction[playerid] = db_get_field_assoc_int(result, "faction_id"); PlayerFactionRank[playerid] = db_get_field_assoc_int(result, "faction_rank"); }
+    db_free_result(result); return 1;
+}
+stock ShowPlayerFaction(playerid)
+{
+    new msg[128];
+    if (PlayerFaction[playerid] == FACTION_NONE) format(msg, sizeof msg, "Ты не состоишь во фракции. /joinfaction 1-3");
+    else format(msg, sizeof msg, "Фракция: %s | Ранг: %d | Служба: %s", PlayerFaction[playerid] == 1 ? ("Полиция") : (PlayerFaction[playerid] == 2 ? ("Медики") : ("Правительство")), PlayerFactionRank[playerid], PlayerOnDuty[playerid] ? ("Да") : ("Нет"));
+    SendClientMessage(playerid, 0x65C9FFFF, msg); return 1;
+}
+stock JoinPlayerFaction(playerid, factionid)
+{
+    if (factionid < 1 || factionid > 3) { SendClientMessage(playerid, 0xFFCC66FF, "Доступные фракции: 1 полиция, 2 медики, 3 правительство."); return 0; }
+    if (PlayerFaction[playerid] != FACTION_NONE) { SendClientMessage(playerid, 0xFFCC66FF, "Сначала выйди из текущей фракции."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[224]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "INSERT INTO player_factions (account_name,faction_id,faction_rank) VALUES ('%s',%d,1);", safeName, factionid);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
+    PlayerFaction[playerid] = factionid; PlayerFactionRank[playerid] = 1;
+    SendClientMessage(playerid, 0x65C9FFFF, "Ты вступил во фракцию. Используй /duty для начала службы."); return 1;
+}
+stock LeavePlayerFaction(playerid)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[160]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "DELETE FROM player_factions WHERE account_name='%s';", safeName);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
+    PlayerFaction[playerid] = FACTION_NONE; PlayerFactionRank[playerid] = 0; PlayerOnDuty[playerid] = false;
+    SendClientMessage(playerid, 0x65C9FFFF, "Ты покинул фракцию."); return 1;
+}
+stock SendFactionMessage(playerid, const message[])
+{
+    if (PlayerFaction[playerid] == FACTION_NONE) { SendClientMessage(playerid, 0xFF5555FF, "Ты не состоишь во фракции."); return 0; }
+    if (message[0] == '\0') return 0;
+    new output[160], name[MAX_PLAYER_NAME + 1]; GetPlayerName(playerid, name, sizeof name);
+    format(output, sizeof output, "[ФРАКЦИЯ] %s [%d]: %s", name, PlayerFactionRank[playerid], message);
+    for (new i = 0; i < MAX_PLAYERS; i++)
+        if (IsPlayerConnected(i) && PlayerLoggedIn[i] && PlayerFaction[i] == PlayerFaction[playerid])
+            SendClientMessage(i, 0x8CCBFFFF, output);
+    return 1;
+}
+stock TogglePlayerDuty(playerid)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE) { SendClientMessage(playerid, 0xFFCC66FF, "Для службы нужна фракция."); return 0; }
+    PlayerOnDuty[playerid] = !PlayerOnDuty[playerid];
+    SendClientMessage(playerid, 0x65C9FFFF, PlayerOnDuty[playerid] ? ("Ты заступил на службу.") : ("Ты закончил службу."));
+    return 1;
+}
+
 stock LogAdminAction(playerid, const action[], const targetName[], const details[])
 {
     if (gDatabase == DB:0) return 0;
@@ -1287,6 +1364,7 @@ stock CompleteLogin(playerid)
     LoadPlayerInventory(playerid);
     LoadPlayerProperties(playerid);
     LoadPlayerAdmin(playerid);
+    LoadPlayerFaction(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     new query[192];
