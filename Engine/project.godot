@@ -1,7 +1,7 @@
 config_version=5
 
 [application]
-config/name="KOKBORI Engine"
+config/name="KOKBORI RP"
 config/icon="res://icon.svg"
 run/main_scene="res://scenes/main.tscn"
 
