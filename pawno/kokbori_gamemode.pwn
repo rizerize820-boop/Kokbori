@@ -540,7 +540,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine");
         return 1;
     }
 
@@ -639,7 +639,75 @@ public OnPlayerCommandText(playerid, cmdtext[])
         SellPlayerVehicle(playerid);
         return 1;
     }
+
+    if (!strcmp(cmdtext, "/lockveh", true))
+    {
+        ToggleOwnedVehicleLock(playerid);
+        return 1;
+    }
+
+    if (!strcmp(cmdtext, "/engine", true))
+    {
+        ToggleOwnedVehicleEngine(playerid);
+        return 1;
+    }
     return 0;
+}
+
+stock ToggleOwnedVehicleLock(playerid)
+{
+    if (!IsPlayerInAnyVehicle(playerid) || GetPlayerVehicleSeat(playerid) != 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Сядь за руль своего автомобиля.");
+        return 0;
+    }
+    new vehicleid = GetPlayerVehicleID(playerid);
+    if (strcmp(VehicleOwner[vehicleid], PlayerAccountName[playerid], true) != 0)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Ты не владелец этого автомобиля.");
+        return 0;
+    }
+    new engine, lights, alarm, doors, bonnet, boot, objective;
+    GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+    if (doors == 1)
+    {
+        SetVehicleParamsEx(vehicleid, -1, -1, -1, 0, -1, -1, -1);
+        SendClientMessage(playerid, 0x65C9FFFF, "Автомобиль открыт.");
+    }
+    else
+    {
+        SetVehicleParamsEx(vehicleid, -1, -1, -1, 1, -1, -1, -1);
+        SendClientMessage(playerid, 0x65C9FFFF, "Автомобиль закрыт.");
+    }
+    return 1;
+}
+
+stock ToggleOwnedVehicleEngine(playerid)
+{
+    if (!IsPlayerInAnyVehicle(playerid) || GetPlayerVehicleSeat(playerid) != 0)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Сядь за руль своего автомобиля.");
+        return 0;
+    }
+    new vehicleid = GetPlayerVehicleID(playerid);
+    if (strcmp(VehicleOwner[vehicleid], PlayerAccountName[playerid], true) != 0)
+    {
+        SendClientMessage(playerid, 0xFF5555FF, "Ты не владелец этого автомобиля.");
+        return 0;
+    }
+    new engine, lights, alarm, doors, bonnet, boot, objective;
+    GetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+    if (engine == 1)
+    {
+        SetVehicleParamsEx(vehicleid, 0, lights, alarm, doors, bonnet, boot, objective);
+        SendClientMessage(playerid, 0x65C9FFFF, "Двигатель выключен.");
+    }
+    else
+    {
+        SetVehicleParamsEx(vehicleid, 1, lights, alarm, doors, bonnet, boot, objective);
+        SendClientMessage(playerid, 0x65C9FFFF, "Двигатель запущен.");
+    }
+    return 1;
 }
 
 stock FindPlayerVehicle(playerid)
