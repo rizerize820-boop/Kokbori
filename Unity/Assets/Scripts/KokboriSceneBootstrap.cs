@@ -13,6 +13,7 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
     private float vehicleThrottle;
     private RectTransform stickKnob;
     private KokboriVehicleController vehicle;
+    private KokboriCityLife cityLife;
     private const float MoveSpeed = 4.5f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -29,6 +30,7 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
         BuildPlayer();
         BuildCamera();
         vehicle = KokboriVehicleController.Create(new Vector3(3, 0, -4));
+        cityLife = KokboriCityLife.Create(player);
         BuildTouchUI();
     }
 
@@ -160,6 +162,7 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         go.name = "KOKBORI Player";
+        go.tag = "Player";
         go.transform.position = new Vector3(0, 1.1f, -5);
         go.GetComponent<Renderer>().material = MakeMaterial(new Color(0.12f, 0.32f, 0.62f));
         Destroy(go.GetComponent<CapsuleCollider>());
@@ -213,6 +216,8 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
 
         MakeActionButton("ENTER / EXIT", canvas.transform, new Vector2(1, 0), new Vector2(1, 0),
             new Vector2(170, 64), new Vector2(-115, 105), () => vehicle.ToggleDrive(player, character, gameCamera));
+        MakeActionButton("SHOP", canvas.transform, new Vector2(1, 0), new Vector2(1, 0),
+            new Vector2(112, 64), new Vector2(-105, 300), () => cityLife.InteractShop());
         MakeHoldButton("GAS", canvas.transform, new Vector2(1, 0), new Vector2(1, 0),
             new Vector2(112, 78), new Vector2(-105, 215), 1f);
         MakeHoldButton("BRAKE", canvas.transform, new Vector2(1, 0), new Vector2(1, 0),
