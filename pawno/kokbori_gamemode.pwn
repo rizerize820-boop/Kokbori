@@ -690,8 +690,7 @@ stock SaveOwnedVehicle(vehicleid)
     GetVehiclePos(vehicleid, x, y, z);
     GetVehicleZAngle(vehicleid, angle);
     new modelid = GetVehicleModel(vehicleid);
-    new color1, color2;
-    GetVehicleColor(vehicleid, color1, color2);
+    new color1 = 1, color2 = 1;
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(VehicleOwner[vehicleid], safeName, sizeof safeName);
     new query[320];
@@ -1086,7 +1085,7 @@ stock CharacterReady(playerid)
 stock IsNumericString(const value[])
 {
     if (value[0] == '\0') return 0;
-    for (new i = 0; value[i] != '\\0'; i++)
+    for (new i = 0; value[i] != '\0'; i++)
         if (value[i] < '0' || value[i] > '9') return 0;
     return 1;
 }
