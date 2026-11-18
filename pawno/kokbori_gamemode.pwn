@@ -27,7 +27,6 @@
 #define DIALOG_BANK_AMOUNT (1007)
 #define DIALOG_BANK_TRANSFER (1008)
 #define JOB_NONE (0)
-#define WORK_COOLDOWN_MS (60000)
 
 new DB:gDatabase;
 new PlayerMoney[MAX_PLAYERS];
