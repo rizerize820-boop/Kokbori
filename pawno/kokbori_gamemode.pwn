@@ -64,6 +64,14 @@ new PlayerFactionRank[MAX_PLAYERS];
 new PlayerFactionDepartment[MAX_PLAYERS];
 new PlayerFactionPosition[MAX_PLAYERS];
 new bool:PlayerOnDuty[MAX_PLAYERS];
+new bool:PlayerFactionTaskActive[MAX_PLAYERS];
+new PlayerFactionTaskStarted[MAX_PLAYERS];
+new PlayerFactionTaskLastCompleted[MAX_PLAYERS];
+new Float:PlayerFactionTaskX[MAX_PLAYERS];
+new Float:PlayerFactionTaskY[MAX_PLAYERS];
+new Float:PlayerFactionTaskZ[MAX_PLAYERS];
+new PlayerFactionTaskWorld[MAX_PLAYERS];
+new PlayerFactionTaskInterior[MAX_PLAYERS];
 new bool:PlayerHasSavedPosition[MAX_PLAYERS];
 new Float:PlayerSavedX[MAX_PLAYERS];
 new Float:PlayerSavedY[MAX_PLAYERS];
@@ -152,6 +160,7 @@ public OnGameModeInit()
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_factions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, faction_rank INTEGER NOT NULL DEFAULT 1);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS faction_applications (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, faction_id INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS faction_assignments (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, department_id INTEGER NOT NULL DEFAULT 0, position_id INTEGER NOT NULL DEFAULT 0);");
+    db_query(gDatabase, "CREATE TABLE IF NOT EXISTS faction_task_progress (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, last_completed INTEGER NOT NULL DEFAULT 0);");
     db_query(gDatabase, "CREATE TABLE IF NOT EXISTS player_positions (account_name TEXT NOT NULL COLLATE NOCASE UNIQUE, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, angle REAL NOT NULL, interior INTEGER NOT NULL DEFAULT 0, world INTEGER NOT NULL DEFAULT 0);");
     LoadOwnedVehicles();
     db_query(gDatabase,
@@ -192,6 +201,14 @@ public OnPlayerConnect(playerid)
     PlayerFaction[playerid] = FACTION_NONE;
     PlayerFactionRank[playerid] = 0;
     PlayerOnDuty[playerid] = false;
+    PlayerFactionTaskActive[playerid] = false;
+    PlayerFactionTaskStarted[playerid] = 0;
+    PlayerFactionTaskLastCompleted[playerid] = 0;
+    PlayerFactionTaskX[playerid] = 0.0;
+    PlayerFactionTaskY[playerid] = 0.0;
+    PlayerFactionTaskZ[playerid] = 0.0;
+    PlayerFactionTaskWorld[playerid] = 0;
+    PlayerFactionTaskInterior[playerid] = 0;
     PlayerHasSavedPosition[playerid] = false;
     PlayerSavedX[playerid] = KOKBORI_SPAWN_X;
     PlayerSavedY[playerid] = KOKBORI_SPAWN_Y;
@@ -651,7 +668,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /applyfaction ID /fapps /faccept ID /freject ID /ffire ID /fassign ID DEPT POSITION /frole /leavefaction /fchat TEXT /duty /frankup ID /frankdown ID /setfrank ID RANK /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /buyveh /veh /parkveh /sellveh /lockveh /engine /inv /buyitem ID /useitem ID /buyhouse /house /sellhouse /buybiz /biz /bizcollect /adminhelp /faction /applyfaction ID /fapps /faccept ID /freject ID /ffire ID /fassign ID DEPT POSITION /frole /ftask /leavefaction /fchat TEXT /duty /frankup ID /frankdown ID /setfrank ID RANK /dropitem ID /giveitem ITEM AMOUNT PLAYERID");
         return 1;
     }
 
@@ -817,6 +834,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/faccept ", true, 9)) { ProcessFactionApplication(playerid, strval(cmdtext[9]), true); return 1; }
     if (!strcmp(cmdtext, "/freject ", true, 9)) { ProcessFactionApplication(playerid, strval(cmdtext[9]), false); return 1; }
     if (!strcmp(cmdtext, "/ffire ", true, 7)) { RemoveFactionMember(playerid, strval(cmdtext[7])); return 1; }
+    if (!strcmp(cmdtext, "/ftask", true)) { HandleFactionTask(playerid); return 1; }
     if (!strcmp(cmdtext, "/frole", true)) { ShowFactionRole(playerid); return 1; }
     if (!strcmp(cmdtext, "/fassign ", true, 9))
     {
@@ -1153,6 +1171,115 @@ stock GetFactionPositionName(position, output[], size)
     else if (position == 2) format(output, size, "Специалист");
     else if (position == 3) format(output, size, "Старший специалист");
     else format(output, size, "Не назначена");
+    return 1;
+}
+
+stock LoadFactionTaskProgress(playerid)
+{
+    PlayerFactionTaskLastCompleted[playerid] = 0;
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT last_completed FROM faction_task_progress WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    if (db_num_rows(result) > 0)
+        PlayerFactionTaskLastCompleted[playerid] = db_get_field_assoc_int(result, "last_completed");
+    db_free_result(result);
+    return 1;
+}
+
+stock SaveFactionTaskProgress(playerid)
+{
+    if (gDatabase == DB:0) return 0;
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[224];
+    EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "INSERT OR REPLACE INTO faction_task_progress (account_name,last_completed) VALUES ('%s',%d);", safeName, PlayerFactionTaskLastCompleted[playerid]);
+    new DBResult:result = db_query(gDatabase, query);
+    if (!result) return 0;
+    db_free_result(result);
+    return 1;
+}
+
+stock HandleFactionTask(playerid)
+{
+    if (PlayerFaction[playerid] == FACTION_NONE || PlayerFactionDepartment[playerid] < 1 || PlayerFactionDepartment[playerid] > 3)
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Для задания нужны фракция и назначенное подразделение. Проверь /frole.");
+        return 0;
+    }
+    if (!PlayerOnDuty[playerid])
+    {
+        SendClientMessage(playerid, 0xFFCC66FF, "Сначала заступи на службу: /duty.");
+        return 0;
+    }
+
+    new now = gettime();
+    if (!PlayerFactionTaskActive[playerid])
+    {
+        if (PlayerFactionTaskLastCompleted[playerid] != 0 && now - PlayerFactionTaskLastCompleted[playerid] < 300)
+        {
+            new left = 300 - (now - PlayerFactionTaskLastCompleted[playerid]), waitMsg[96];
+            format(waitMsg, sizeof waitMsg, "Новое служебное задание будет доступно через %d сек.", left);
+            SendClientMessage(playerid, 0xFFCC66FF, waitMsg);
+            return 0;
+        }
+        GetPlayerPos(playerid, PlayerFactionTaskX[playerid], PlayerFactionTaskY[playerid], PlayerFactionTaskZ[playerid]);
+        PlayerFactionTaskWorld[playerid] = GetPlayerVirtualWorld(playerid);
+        PlayerFactionTaskInterior[playerid] = GetPlayerInterior(playerid);
+        PlayerFactionTaskStarted[playerid] = now;
+        PlayerFactionTaskActive[playerid] = true;
+
+        if (PlayerFaction[playerid] == FACTION_POLICE)
+        {
+            if (PlayerFactionDepartment[playerid] == 1) SendClientMessage(playerid, 0x65C9FFFF, "Задание: принять обращение жителя и оформить служебную запись.");
+            else if (PlayerFactionDepartment[playerid] == 2) SendClientMessage(playerid, 0x65C9FFFF, "Задание: подготовить информационную сводку по общественному порядку.");
+            else SendClientMessage(playerid, 0x65C9FFFF, "Задание: проверить и систематизировать административные документы.");
+        }
+        else if (PlayerFaction[playerid] == FACTION_MEDIC)
+        {
+            if (PlayerFactionDepartment[playerid] == 1) SendClientMessage(playerid, 0x65C9FFFF, "Задание: оформить карточку посетителя регистратуры.");
+            else if (PlayerFactionDepartment[playerid] == 2) SendClientMessage(playerid, 0x65C9FFFF, "Задание: составить расписание обращений и координации помощи.");
+            else SendClientMessage(playerid, 0x65C9FFFF, "Задание: провести учёт клинических запасов и записей.");
+        }
+        else
+        {
+            if (PlayerFactionDepartment[playerid] == 1) SendClientMessage(playerid, 0x65C9FFFF, "Задание: обработать обращение жителя в приёмной.");
+            else if (PlayerFactionDepartment[playerid] == 2) SendClientMessage(playerid, 0x65C9FFFF, "Задание: проверить комплектность документов и внести запись.");
+            else SendClientMessage(playerid, 0x65C9FFFF, "Задание: подготовить краткую сводку по городской программе.");
+        }
+        SendClientMessage(playerid, 0xFFFFFFFF, "Выполняй RP-отыгровку 45 секунд на месте, затем повтори /ftask для сдачи задания.");
+        return 1;
+    }
+
+    if (now - PlayerFactionTaskStarted[playerid] < 45)
+    {
+        new left = 45 - (now - PlayerFactionTaskStarted[playerid]), waitMsg[96];
+        format(waitMsg, sizeof waitMsg, "Задание ещё выполняется. Осталось %d сек.", left);
+        SendClientMessage(playerid, 0xFFCC66FF, waitMsg);
+        return 0;
+    }
+    if (!PlayerOnDuty[playerid] || PlayerFaction[playerid] == FACTION_NONE ||
+        GetPlayerVirtualWorld(playerid) != PlayerFactionTaskWorld[playerid] ||
+        GetPlayerInterior(playerid) != PlayerFactionTaskInterior[playerid] ||
+        !IsPlayerInRangeOfPoint(playerid, 5.0, PlayerFactionTaskX[playerid], PlayerFactionTaskY[playerid], PlayerFactionTaskZ[playerid]))
+    {
+        PlayerFactionTaskActive[playerid] = false;
+        SendClientMessage(playerid, 0xFFCC66FF, "Задание отменено: ты покинул место выполнения или службу.");
+        return 0;
+    }
+
+    PlayerFactionTaskActive[playerid] = false;
+    PlayerFactionTaskLastCompleted[playerid] = now;
+    SaveFactionTaskProgress(playerid);
+    new reward = 500 + (PlayerFactionRank[playerid] * 100);
+    PlayerMoney[playerid] += reward;
+    ResetPlayerMoney(playerid);
+    GivePlayerMoney(playerid, PlayerMoney[playerid]);
+    SavePlayerCash(playerid);
+    new doneMsg[112];
+    format(doneMsg, sizeof doneMsg, "Служебное задание выполнено. Начислено %d KZT. Следующее — через 5 минут.", reward);
+    SendClientMessage(playerid, 0x65C9FFFF, doneMsg);
     return 1;
 }
 
@@ -1815,6 +1942,7 @@ stock CompleteLogin(playerid)
     LoadPlayerProperties(playerid);
     LoadPlayerAdmin(playerid);
     LoadPlayerFaction(playerid);
+    LoadFactionTaskProgress(playerid);
     LoadPlayerPosition(playerid);
     new safeName[(MAX_PLAYER_NAME * 2) + 1];
     EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
