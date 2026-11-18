@@ -1259,7 +1259,7 @@ stock ProcessFactionApplication(playerid, targetid, bool:accept)
     if (db_num_rows(result) == 0) { db_free_result(result); SendClientMessage(playerid, 0xFFCC66FF, "У игрока нет заявки."); return 0; }
     new requestedFaction = db_get_field_assoc_int(result, "faction_id"); db_free_result(result);
     if (requestedFaction != PlayerFaction[playerid]) { SendClientMessage(playerid, 0xFFCC66FF, "Заявка подана в другую фракцию."); return 0; }
-    if (accept) { format(query, sizeof query, "INSERT INTO player_factions (account_name,faction_id,faction_rank) VALUES ('%s',%d,1);", safeName, requestedFaction); result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result); PlayerFaction[targetid] = requestedFaction; PlayerFactionRank[targetid] = 1; PlayerOnDuty[targetid] = false; }
+    if (accept) { format(query, sizeof query, "INSERT INTO player_factions (account_name,faction_id,faction_rank) VALUES ('%s',%d,1);", safeName, requestedFaction); result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result); PlayerFaction[targetid] = requestedFaction; PlayerFactionRank[targetid] = 1; PlayerOnDuty[targetid] = false; PlayerFactionDepartment[targetid] = 0; PlayerFactionPosition[targetid] = 0; }
     format(query, sizeof query, "DELETE FROM faction_applications WHERE account_name='%s';", safeName); result = db_query(gDatabase, query); if (result) db_free_result(result);
     SendClientMessage(targetid, 0x65C9FFFF, accept ? ("Твою заявку одобрили.") : ("Твоя заявка отклонена."));
     SendClientMessage(playerid, 0x65C9FFFF, accept ? ("Кандидат принят.") : ("Заявка отклонена.")); return 1;
@@ -1273,7 +1273,8 @@ stock RemoveFactionMember(playerid, targetid)
     new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192]; EscapeSQL(PlayerAccountName[targetid], safeName, sizeof safeName);
     format(query, sizeof query, "DELETE FROM player_factions WHERE account_name='%s';", safeName);
     new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
-    PlayerFaction[targetid] = FACTION_NONE; PlayerFactionRank[targetid] = 0; PlayerOnDuty[targetid] = false;
+    format(query, sizeof query, "DELETE FROM faction_assignments WHERE account_name='%s';", safeName); result = db_query(gDatabase, query); if (result) db_free_result(result);
+    PlayerFaction[targetid] = FACTION_NONE; PlayerFactionRank[targetid] = 0; PlayerOnDuty[targetid] = false; PlayerFactionDepartment[targetid] = 0; PlayerFactionPosition[targetid] = 0;
     SendClientMessage(targetid, 0xFFCC66FF, "Ты больше не состоишь во фракции."); SendClientMessage(playerid, 0x65C9FFFF, "Участник исключён."); return 1;
 }
 stock LeavePlayerFaction(playerid)
@@ -1282,7 +1283,8 @@ stock LeavePlayerFaction(playerid)
     new safeName[(MAX_PLAYER_NAME * 2) + 1], query[160]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
     format(query, sizeof query, "DELETE FROM player_factions WHERE account_name='%s';", safeName);
     new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
-    PlayerFaction[playerid] = FACTION_NONE; PlayerFactionRank[playerid] = 0; PlayerOnDuty[playerid] = false;
+    format(query, sizeof query, "DELETE FROM faction_assignments WHERE account_name='%s';", safeName); result = db_query(gDatabase, query); if (result) db_free_result(result);
+    PlayerFaction[playerid] = FACTION_NONE; PlayerFactionRank[playerid] = 0; PlayerOnDuty[playerid] = false; PlayerFactionDepartment[playerid] = 0; PlayerFactionPosition[playerid] = 0;
     SendClientMessage(playerid, 0x65C9FFFF, "Ты покинул фракцию."); return 1;
 }
 stock SendFactionMessage(playerid, const message[])
