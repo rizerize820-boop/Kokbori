@@ -1141,6 +1141,55 @@ stock JoinPlayerFaction(playerid, factionid)
     PlayerFaction[playerid] = factionid; PlayerFactionRank[playerid] = 1;
     SendClientMessage(playerid, 0x65C9FFFF, "Ты вступил во фракцию. Используй /duty для начала службы."); return 1;
 }
+stock ApplyFaction(playerid, factionid)
+{
+    if (factionid < 1 || factionid > 3 || PlayerFaction[playerid] != FACTION_NONE) { SendClientMessage(playerid, 0xFFCC66FF, "Нельзя подать такую заявку."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[256]; EscapeSQL(PlayerAccountName[playerid], safeName, sizeof safeName);
+    format(query, sizeof query, "INSERT OR REPLACE INTO faction_applications (account_name,faction_id) VALUES ('%s',%d);", safeName, factionid);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
+    SendClientMessage(playerid, 0x65C9FFFF, "Заявка отправлена. Ожидай решения лидера фракции."); return 1;
+}
+
+stock IsFactionLeader(playerid) { return PlayerFaction[playerid] != FACTION_NONE && PlayerFactionRank[playerid] == 5; }
+
+stock ShowFactionApplications(playerid)
+{
+    if (!IsFactionLeader(playerid)) { SendClientMessage(playerid, 0xFF5555FF, "Список заявок доступен только лидеру фракции."); return 0; }
+    new query[192]; format(query, sizeof query, "SELECT account_name FROM faction_applications WHERE faction_id=%d;", PlayerFaction[playerid]);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0;
+    SendClientMessage(playerid, 0x65C9FFFF, "Заявки твоей фракции:");
+    if (db_num_rows(result) == 0) SendClientMessage(playerid, 0xFFFFFFFF, "Заявок пока нет.");
+    else { new applicant[MAX_PLAYER_NAME + 1], line[64]; do { db_get_field_assoc(result, "account_name", applicant, sizeof applicant); format(line, sizeof line, "- %s", applicant); SendClientMessage(playerid, 0xFFFFFFFF, line); } while (db_next_row(result)); }
+    db_free_result(result); return 1;
+}
+
+stock ProcessFactionApplication(playerid, targetid, bool:accept)
+{
+    if (!IsFactionLeader(playerid)) { SendClientMessage(playerid, 0xFF5555FF, "Решать заявки может только лидер фракции."); return 0; }
+    if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] || PlayerFaction[targetid] != FACTION_NONE) { SendClientMessage(playerid, 0xFFCC66FF, "Кандидат должен быть в сети и без фракции."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[256]; EscapeSQL(PlayerAccountName[targetid], safeName, sizeof safeName);
+    format(query, sizeof query, "SELECT faction_id FROM faction_applications WHERE account_name='%s' LIMIT 1;", safeName);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0;
+    if (db_num_rows(result) == 0) { db_free_result(result); SendClientMessage(playerid, 0xFFCC66FF, "У игрока нет заявки."); return 0; }
+    new requestedFaction = db_get_field_assoc_int(result, "faction_id"); db_free_result(result);
+    if (requestedFaction != PlayerFaction[playerid]) { SendClientMessage(playerid, 0xFFCC66FF, "Заявка подана в другую фракцию."); return 0; }
+    if (accept) { format(query, sizeof query, "INSERT INTO player_factions (account_name,faction_id,faction_rank) VALUES ('%s',%d,1);", safeName, requestedFaction); result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result); PlayerFaction[targetid] = requestedFaction; PlayerFactionRank[targetid] = 1; PlayerOnDuty[targetid] = false; }
+    format(query, sizeof query, "DELETE FROM faction_applications WHERE account_name='%s';", safeName); result = db_query(gDatabase, query); if (result) db_free_result(result);
+    SendClientMessage(targetid, 0x65C9FFFF, accept ? ("Твою заявку одобрили.") : ("Твоя заявка отклонена."));
+    SendClientMessage(playerid, 0x65C9FFFF, accept ? ("Кандидат принят.") : ("Заявка отклонена.")); return 1;
+}
+
+stock RemoveFactionMember(playerid, targetid)
+{
+    if (!IsFactionLeader(playerid) && PlayerAdminLevel[playerid] < 3) { SendClientMessage(playerid, 0xFF5555FF, "Нужен лидер фракции или админ 3+."); return 0; }
+    if (targetid < 0 || targetid >= MAX_PLAYERS || !IsPlayerConnected(targetid) || !PlayerLoggedIn[targetid] || PlayerFaction[targetid] == FACTION_NONE || targetid == playerid) { SendClientMessage(playerid, 0xFFCC66FF, "Неверный ID участника."); return 0; }
+    if (PlayerAdminLevel[playerid] < 3 && (PlayerFaction[targetid] != PlayerFaction[playerid] || PlayerFactionRank[targetid] >= PlayerFactionRank[playerid])) { SendClientMessage(playerid, 0xFF5555FF, "Нельзя уволить участника другой фракции или с равным/высшим рангом."); return 0; }
+    new safeName[(MAX_PLAYER_NAME * 2) + 1], query[192]; EscapeSQL(PlayerAccountName[targetid], safeName, sizeof safeName);
+    format(query, sizeof query, "DELETE FROM player_factions WHERE account_name='%s';", safeName);
+    new DBResult:result = db_query(gDatabase, query); if (!result) return 0; db_free_result(result);
+    PlayerFaction[targetid] = FACTION_NONE; PlayerFactionRank[targetid] = 0; PlayerOnDuty[targetid] = false;
+    SendClientMessage(targetid, 0xFFCC66FF, "Ты больше не состоишь во фракции."); SendClientMessage(playerid, 0x65C9FFFF, "Участник исключён."); return 1;
+}
 stock LeavePlayerFaction(playerid)
 {
     if (PlayerFaction[playerid] == FACTION_NONE) return 0;
