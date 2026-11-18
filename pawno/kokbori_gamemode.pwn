@@ -520,7 +520,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
     if (!strcmp(cmdtext, "/help", true))
     {
         SendClientMessage(playerid, 0x65C9FFFF,
-            "KOKBORI: /help /stats /id /job /work /bank /veh");
+            "KOKBORI: /help /stats /id /job /work /bank /bankhistory /veh");
         return 1;
     }
 
