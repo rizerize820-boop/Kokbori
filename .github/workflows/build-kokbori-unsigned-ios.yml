@@ -34,7 +34,9 @@ jobs:
           from pathlib import Path
           p = Path("Engine/export_presets.cfg")
           s = p.read_text()
-          s = s.replace('application/app_store_team_id="YOUR_10_CHARACTER_APPLE_TEAM_ID"', 'application/app_store_team_id=""')
+          # Godot 4.3 refuses to generate an iOS export project when this field is empty.
+          # This placeholder is NOT a real Apple Team ID and is only for unsigned project generation.
+          s = s.replace('application/app_store_team_id="YOUR_10_CHARACTER_APPLE_TEAM_ID"', 'application/app_store_team_id="0000000000"')
           s = s.replace('application/code_sign_identity_debug=""', 'application/code_sign_identity_debug=""')
           s = s.replace('application/code_sign_identity_release=""', 'application/code_sign_identity_release=""')
           s = s.replace('application/provisioning_profile_uuid_debug=""', 'application/provisioning_profile_uuid_debug=""')
