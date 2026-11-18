@@ -42,9 +42,9 @@ jobs:
           set -euxo pipefail
           GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
           mkdir -p Engine/build
-          "$GODOT" --headless --path Engine --export-debug "iOS" Engine/build/KOKBORI-Godot-iOS
+          "$GODOT" --headless --path Engine --export-debug "iOS" build/KOKBORI-Godot-iOS
           test -d Engine/build/KOKBORI-Godot-iOS
-          find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
+          find build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
 
       - name: Build unsigned iOS app with Xcode
         run: |
