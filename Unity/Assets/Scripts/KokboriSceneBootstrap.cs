@@ -119,6 +119,31 @@ public sealed class KokboriSceneBootstrap : MonoBehaviour
             CreateBlock("Tree Crown", new Vector3(x, 2.8f, z), new Vector3(2.2f, 2.4f, 2.2f), new Color(0.16f, 0.34f, 0.19f));
         }
 
+        // Sidewalks, pedestrian crossings and roadside details.
+        CreateBlock("West Sidewalk", new Vector3(-9.4f,0.02f,0), new Vector3(2.4f,0.16f,175), new Color(0.48f,0.48f,0.46f));
+        CreateBlock("East Sidewalk", new Vector3(9.4f,0.02f,0), new Vector3(2.4f,0.16f,175), new Color(0.48f,0.48f,0.46f));
+        for (int i = -5; i <= 5; i++)
+            CreateBlock("Pedestrian Crossing Stripe", new Vector3(i * 1.15f,0.065f,2.8f),
+                new Vector3(0.72f,0.035f,4.2f), new Color(0.9f,0.9f,0.86f));
+        // Bus stop shelter with a roof, glass panels and bench.
+        CreateBlock("Bus Stop Platform", new Vector3(-13,0.08f,18), new Vector3(5.5f,0.18f,2.5f), new Color(0.46f,0.46f,0.43f));
+        CreateBlock("Bus Stop Roof", new Vector3(-13,3.1f,18), new Vector3(5.8f,0.2f,2.8f), new Color(0.18f,0.22f,0.27f));
+        for (int z = 17; z <= 19; z += 2)
+            CreateBlock("Bus Stop Glass", new Vector3(-13,1.6f,z), new Vector3(5.2f,2.8f,0.07f), new Color(0.25f,0.48f,0.55f));
+        CreateBlock("Bus Stop Bench", new Vector3(-13,0.75f,19.3f), new Vector3(3.2f,0.16f,0.45f), new Color(0.28f,0.18f,0.1f));
+        CreateBlock("Bus Stop Sign", new Vector3(-16,2.2f,16), new Vector3(0.15f,3.8f,0.15f), new Color(0.2f,0.22f,0.24f));
+        CreateBlock("Bus Stop Sign Board", new Vector3(-16,3.8f,16), new Vector3(0.9f,0.8f,0.12f), new Color(0.12f,0.38f,0.25f));
+        // Traffic signal poles and signal heads at the main junction.
+        for (int side = -1; side <= 1; side += 2)
+        {
+            Vector3 pole = new Vector3(side * 10.5f,0,1.5f);
+            CreateBlock("Traffic Signal Pole", pole + Vector3.up * 3, new Vector3(0.18f,6,0.18f), new Color(0.16f,0.17f,0.18f));
+            CreateBlock("Traffic Signal Head", pole + new Vector3(0,5.2f,0.25f), new Vector3(0.55f,1.35f,0.42f), new Color(0.08f,0.08f,0.09f));
+            CreateBlock("Traffic Red Lamp", pole + new Vector3(0,5.58f,0.49f), new Vector3(0.24f,0.24f,0.05f), new Color(0.8f,0.08f,0.05f));
+            CreateBlock("Traffic Amber Lamp", pole + new Vector3(0,5.2f,0.49f), new Vector3(0.24f,0.24f,0.05f), new Color(0.9f,0.55f,0.05f));
+            CreateBlock("Traffic Green Lamp", pole + new Vector3(0,4.82f,0.49f), new Vector3(0.24f,0.24f,0.05f), new Color(0.08f,0.65f,0.18f));
+        }
+
         // Original landmark silhouette, not a replica of a protected game asset.
         CreateBlock("City Landmark Base", new Vector3(0, 2, -27), new Vector3(5, 4, 5), new Color(0.72f, 0.62f, 0.34f));
         CreateBlock("City Landmark Shaft", new Vector3(0, 8, -27), new Vector3(1.2f, 9, 1.2f), new Color(0.78f, 0.7f, 0.48f));
