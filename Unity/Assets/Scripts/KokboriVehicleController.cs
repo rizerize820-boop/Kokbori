@@ -39,6 +39,12 @@ public sealed class KokboriVehicleController : MonoBehaviour
         MakePart("Rear Glass", new Vector3(0, 1.35f, -1.12f), new Vector3(1.48f, 0.58f, 0.06f), new Color(0.25f, 0.48f, 0.58f));
         MakePart("Front Bumper", new Vector3(0, 0.55f, 2.08f), new Vector3(1.9f, 0.22f, 0.16f), Color.gray);
         MakePart("Rear Bumper", new Vector3(0, 0.55f, -2.08f), new Vector3(1.9f, 0.22f, 0.16f), Color.gray);
+        MakePart("Left Headlight", new Vector3(-0.68f, 0.82f, 2.09f), new Vector3(0.48f, 0.22f, 0.08f), new Color(0.95f, 0.9f, 0.68f));
+        MakePart("Right Headlight", new Vector3(0.68f, 0.82f, 2.09f), new Vector3(0.48f, 0.22f, 0.08f), new Color(0.95f, 0.9f, 0.68f));
+        MakePart("Left Tail Light", new Vector3(-0.68f, 0.82f, -2.09f), new Vector3(0.48f, 0.22f, 0.08f), new Color(0.72f, 0.08f, 0.06f));
+        MakePart("Right Tail Light", new Vector3(0.68f, 0.82f, -2.09f), new Vector3(0.48f, 0.22f, 0.08f), new Color(0.72f, 0.08f, 0.06f));
+        MakePart("Left Mirror", new Vector3(-1.03f, 1.3f, 0.65f), new Vector3(0.24f, 0.18f, 0.42f), new Color(0.08f, 0.12f, 0.16f));
+        MakePart("Right Mirror", new Vector3(1.03f, 1.3f, 0.65f), new Vector3(0.24f, 0.18f, 0.42f), new Color(0.08f, 0.12f, 0.16f));
         for (int side = -1; side <= 1; side += 2)
         for (int axle = -1; axle <= 1; axle += 2)
         {
