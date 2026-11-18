@@ -44,7 +44,7 @@ jobs:
           mkdir -p Engine/build
           "$GODOT" --headless --path Engine --export-debug "iOS" build/KOKBORI-Godot-iOS
           test -d Engine/build/KOKBORI-Godot-iOS
-          find build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
+          find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
 
       - name: Build unsigned iOS app with Xcode
         run: |
