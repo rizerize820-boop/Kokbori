@@ -40,7 +40,7 @@ func _on_viewport_resized() -> void:
 
 func _layout_controls() -> void:
 	var short_side := minf(screen_size.x, screen_size.y)
-	pad_radius = clampf(short_side * 0.105, 68.0, 94.0)
+	pad_radius = clampf(short_side * 0.11, 74.0, 102.0)
 	pad_center = Vector2(maxf(pad_radius + 26.0, screen_size.x * 0.12), screen_size.y - maxf(pad_radius + 34.0, screen_size.y * 0.17))
 	jump_button = Vector2(screen_size.x - 132.0, screen_size.y - 142.0)
 	sprint_button = Vector2(screen_size.x - 286.0, screen_size.y - 108.0)
@@ -79,14 +79,14 @@ func _draw_hud() -> void:
 	# Action buttons.
 	var driving_now := vehicle != null and bool(vehicle.get("driving"))
 	if driving_now:
-		_draw_action_button(gas_button, 62.0, "GAS", Color("#35b96f"))
-		_draw_action_button(brake_button, 55.0, "BRAKE", Color("#d45b55"))
-		_draw_action_button(handbrake_button, 48.0, "HANDBRK", Color("#bd8742"))
+		_draw_action_button(gas_button, 72.0, "GAS", Color("#35b96f"))
+		_draw_action_button(brake_button, 63.0, "BRAKE", Color("#d45b55"))
+		_draw_action_button(handbrake_button, 55.0, "HANDBRK", Color("#bd8742"))
 	else:
 		_draw_action_button(jump_button, 59.0, "JUMP", Color("#4aa8e8"))
 		_draw_action_button(sprint_button, 47.0, "RUN", Color("#54b98a"))
 	if vehicle != null and (driving_now or bool(vehicle.call("can_enter"))):
-		_draw_action_button(vehicle_button, 53.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
+		_draw_action_button(vehicle_button, 60.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
 		if driving_now:
 			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H", HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
 	hud.draw_string(font, Vector2(screen_size.x * 0.50 - 46.0, 34), "FREE CAMERA", HORIZONTAL_ALIGNMENT_CENTER, 140, 13, Color("#e4edf4", 0.78))
@@ -127,19 +127,19 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 	if pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
 		touches[index] = "move"
 		_update_stick(pos)
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 88.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 112.0:
 		touches[index] = "gas"
 		gas_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 80.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 98.0:
 		touches[index] = "brake"
 		brake_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 72.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 86.0:
 		touches[index] = "handbrake"
 		handbrake_pressed = true
 		vehicle.call("set_handbrake", true)
-	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 78.0:
+	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 92.0:
 		touches[index] = "vehicle"
 		vehicle.call("toggle_player")
 		gas_pressed = false
