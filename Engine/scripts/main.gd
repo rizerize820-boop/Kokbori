@@ -2,6 +2,7 @@ extends Node3D
 
 const PlayerScript = preload("res://scripts/player.gd")
 const ControlsScript = preload("res://scripts/mobile_controls.gd")
+const VehicleScript = preload("res://scripts/vehicle.gd")
 
 var materials: Dictionary = {}
 
@@ -18,6 +19,11 @@ func _ready() -> void:
 	player.set_script(PlayerScript)
 	player.position = Vector3(0, 0.15, 12)
 	add_child(player)
+	var camry := CharacterBody3D.new()
+	camry.set_script(VehicleScript)
+	camry.position = Vector3(2.8, 0.15, 9.0)
+	add_child(camry)
+	camry.call("set_driver", player)
 	var controls := CanvasLayer.new()
 	controls.set_script(ControlsScript)
 	add_child(controls)
