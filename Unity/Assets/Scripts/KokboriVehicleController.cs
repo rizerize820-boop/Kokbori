@@ -59,6 +59,20 @@ public sealed class KokboriVehicleController : MonoBehaviour
         MakePart("Front Bumper", new Vector3(0,0.48f,2.02f), new Vector3(1.88f,0.2f,0.16f), new Color(0.12f,0.13f,0.15f));
         MakePart("Rear Bumper", new Vector3(0,0.48f,-2.03f), new Vector3(1.88f,0.2f,0.16f), new Color(0.12f,0.13f,0.15f));
         MakePart("Front Grille", new Vector3(0,0.7f,2.035f), new Vector3(0.72f,0.22f,0.035f), new Color(0.025f,0.03f,0.04f));
+        // XV50-inspired front fascia, chrome grille bars and lower air intake.
+        MakePart("Upper Chrome Grille", new Vector3(0,0.82f,2.055f), new Vector3(1.02f,0.055f,0.045f), new Color(0.58f,0.61f,0.63f));
+        MakePart("Lower Front Intake", new Vector3(0,0.49f,2.055f), new Vector3(1.12f,0.13f,0.045f), new Color(0.025f,0.03f,0.035f));
+        MakePart("Front Lip", new Vector3(0,0.36f,2.045f), new Vector3(1.72f,0.07f,0.12f), new Color(0.045f,0.05f,0.06f));
+        MakePart("Left Fog Lamp", new Vector3(-0.72f,0.48f,2.06f), new Vector3(0.22f,0.13f,0.045f), new Color(0.82f,0.86f,0.82f));
+        MakePart("Right Fog Lamp", new Vector3(0.72f,0.48f,2.06f), new Vector3(0.22f,0.13f,0.045f), new Color(0.82f,0.86f,0.82f));
+        // Door handles and lower side skirts help define the XV50 sedan profile.
+        for (int side = -1; side <= 1; side += 2)
+        {
+            MakePart(side < 0 ? "Left Door Handles" : "Right Door Handles",
+                new Vector3(side * 0.91f,0.98f,-0.12f), new Vector3(0.035f,0.055f,0.62f), new Color(0.62f,0.64f,0.66f));
+            MakePart(side < 0 ? "Left Side Skirt" : "Right Side Skirt",
+                new Vector3(side * 0.96f,0.34f,-0.12f), new Vector3(0.10f,0.12f,2.55f), new Color(0.055f,0.06f,0.07f));
+        }
         MakePart("Left Headlight", new Vector3(-0.67f,0.82f,1.99f), new Vector3(0.42f,0.2f,0.06f), new Color(0.95f,0.9f,0.68f));
         MakePart("Right Headlight", new Vector3(0.67f,0.82f,1.99f), new Vector3(0.42f,0.2f,0.06f), new Color(0.95f,0.9f,0.68f));
         MakePart("Left Tail Light", new Vector3(-0.68f,0.78f,-2.04f), new Vector3(0.38f,0.2f,0.06f), new Color(0.72f,0.06f,0.04f));
