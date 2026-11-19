@@ -699,8 +699,8 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 			var edge_normal := Vector2(-delta.y, delta.x).normalized()
 			var edge_offset := maxf(0.0, width * 0.5 - 0.22)
 			for edge_sign in [-1.0, 1.0]:
-				var edge_a := a + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
-				var edge_b := b + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
+				var edge_a: Vector3 = a + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
+				var edge_b: Vector3 = b + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
 				var edge_side := Vector3(edge_normal.x, 0.0, edge_normal.y) * 0.065
 				_add_osm_quad(_osm_surfaces["road_edges"], edge_a + edge_side + Vector3.UP * 0.094, edge_a - edge_side + Vector3.UP * 0.094, edge_b - edge_side + Vector3.UP * 0.094, edge_b + edge_side + Vector3.UP * 0.094)
 			var mark_side := edge_normal * 0.075
