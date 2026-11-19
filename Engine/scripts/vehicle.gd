@@ -67,7 +67,7 @@ func set_driver(player: CharacterBody3D) -> void:
 			break
 
 func can_enter() -> bool:
-	return not driving and driver != null and global_position.distance_to(driver.global_position) < 5.0
+	return not driving and driver != null and global_position.distance_to(driver.global_position) < 6.5
 
 func toggle_player() -> void:
 	if not driving:
