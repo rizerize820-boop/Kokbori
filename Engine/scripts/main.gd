@@ -49,6 +49,9 @@ func _material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.82
+	# OSM polygons do not have a guaranteed winding order. Render both sides
+	# so building walls, park polygons and road surfaces cannot vanish.
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mat
 
 func _visual_box(parent: Node3D, pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
@@ -316,6 +319,7 @@ func _commit_osm_surface(key: String, mat: Material) -> void:
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	instance.material_override = mat
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(instance)
 
 func _add_osm_building(ring: Array, properties: Dictionary) -> void:
@@ -338,20 +342,29 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	var triangles := Geometry2D.triangulate_polygon(points)
 	if triangles.is_empty():
 		return
+	var facade_color := _osm_color(str(properties.get("facade_colour", "")), Color("#aeb8bf"))
+	var roof_color := _osm_color(str(properties.get("roof_colour", "")), Color("#68747d"))
 	var walls: SurfaceTool = _osm_surfaces["walls"]
 	for i in range(points.size()):
 		var a := points[i]
 		var b := points[(i + 1) % points.size()]
+		walls.set_color(facade_color)
 		walls.add_vertex(Vector3(a.x, 0, a.y))
+		walls.set_color(facade_color)
 		walls.add_vertex(Vector3(b.x, 0, b.y))
+		walls.set_color(facade_color.darkened(0.06))
 		walls.add_vertex(Vector3(b.x, height, b.y))
+		walls.set_color(facade_color)
 		walls.add_vertex(Vector3(a.x, 0, a.y))
+		walls.set_color(facade_color.darkened(0.06))
 		walls.add_vertex(Vector3(b.x, height, b.y))
+		walls.set_color(facade_color.lightened(0.035))
 		walls.add_vertex(Vector3(a.x, height, a.y))
 	var roof: SurfaceTool = _osm_surfaces["roofs"]
 	for i in range(0, triangles.size(), 3):
 		for j in range(3):
 			var p := points[triangles[i + j]]
+			roof.set_color(roof_color)
 			roof.add_vertex(Vector3(p.x, height, p.y))
 
 	# Add repeated, scale-aware facade windows and floor bands to OSM buildings.
@@ -396,6 +409,16 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 					Vector3(right.x, y, right.y),
 					Vector3(right.x, y + 1.35, right.y),
 					Vector3(left.x, y + 1.35, left.y))
+
+func _osm_color(value: String, fallback: Color) -> Color:
+	var candidate := value.strip_edges()
+	if candidate.is_empty():
+		return fallback
+	if not candidate.begins_with("#"):
+		candidate = "#" + candidate
+	if candidate.length() == 7 or candidate.length() == 9:
+		return Color.from_string(candidate, fallback)
+	return fallback
 
 func _add_osm_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
 	surface.add_vertex(a)
