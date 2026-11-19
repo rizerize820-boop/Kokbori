@@ -117,8 +117,8 @@ func toggle_player() -> void:
 			driver_collider.set_deferred("disabled", true)
 		if driver_mesh != null:
 			driver_mesh.visible = false
-		driver.reparent(self, true)
-		driver.global_position = global_position
+		# Keep the player separate from the vehicle physics body.
+		driver.global_position = global_position + Vector3.UP * 0.85
 		driver.global_rotation = global_rotation
 	else:
 		driving = false
@@ -127,8 +127,7 @@ func toggle_player() -> void:
 		steering_smooth = 0.0
 		handbrake = false
 		speed = 0.0
-		driver.reparent(get_parent(), true)
-		driver.global_position = global_position + global_transform.basis.x * 2.2 + Vector3.UP * 0.15
+		driver.global_position = global_position + global_transform.basis.x * 2.2 + Vector3.UP * 0.95
 		driver.global_rotation = Vector3.ZERO
 		if driver_collider != null:
 			driver_collider.set_deferred("disabled", false)
@@ -154,6 +153,10 @@ func _physics_process(delta: float) -> void:
 		speed = 0.0
 	if not driving:
 		return
+	# Keep the hidden driver and camera above the chassis while driving.
+	if is_instance_valid(driver):
+		driver.global_position = global_position + Vector3.UP * 0.85
+		driver.global_rotation = global_rotation
 	# SA-MP-style arcade handling: progressive throttle, distinct braking/reverse,
 	# speed-sensitive steering and a handbrake that tightens the turn.
 	if throttle > 0.05:
