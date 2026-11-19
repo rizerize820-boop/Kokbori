@@ -114,7 +114,7 @@ def main():
                     add_feature("area", coords, tags)
 
     # Bound the mobile snapshot and preserve a mix of city features.
-    limits = {"building": 11000, "road": 6000, "area": 700, "water": 300}
+    limits = {"building": 30000, "road": 18000, "area": 1500, "water": 600}
     features = []
     for key in ("building", "road", "water", "area"):
         features.extend(buckets[key][:limits[key]])
@@ -124,7 +124,7 @@ def main():
            "bbox": [WEST, SOUTH, EAST, NORTH], "features": features}
     with open("Engine/data/astana_osm.geojson", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"Saved {len(features)} OSM features to Engine/data/astana_osm.geojson (bounded mobile snapshot)")
+    print(f"Saved {len(features)} OSM features to Engine/data/astana_osm.geojson (expanded Astana mobile snapshot)")
 
 if __name__ == "__main__":
     main()
