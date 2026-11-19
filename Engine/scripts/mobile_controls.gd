@@ -6,8 +6,10 @@ var vehicle: Node3D
 var vehicle_button := Vector2.ZERO
 var gas_button := Vector2.ZERO
 var brake_button := Vector2.ZERO
+var handbrake_button := Vector2.ZERO
 var gas_pressed := false
 var brake_pressed := false
+var handbrake_pressed := false
 var touches: Dictionary = {}
 var pad_center := Vector2.ZERO
 var pad_radius := 88.0
@@ -42,7 +44,8 @@ func _layout_controls() -> void:
 	pad_center = Vector2(maxf(pad_radius + 26.0, screen_size.x * 0.12), screen_size.y - maxf(pad_radius + 34.0, screen_size.y * 0.17))
 	jump_button = Vector2(screen_size.x - 104.0, screen_size.y - 112.0)
 	sprint_button = Vector2(screen_size.x - 235.0, screen_size.y - 86.0)
-	vehicle_button = Vector2(screen_size.x - 112.0, screen_size.y - 238.0)
+	vehicle_button = Vector2(screen_size.x - 112.0, screen_size.y - 345.0)
+	handbrake_button = Vector2(screen_size.x - 105.0, screen_size.y - 235.0)
 	gas_button = Vector2(screen_size.x - 105.0, screen_size.y - 115.0)
 	brake_button = Vector2(screen_size.x - 220.0, screen_size.y - 115.0)
 
@@ -78,6 +81,7 @@ func _draw_hud() -> void:
 	if driving_now:
 		_draw_action_button(gas_button, 49.0, "GAS", Color("#35b96f"))
 		_draw_action_button(brake_button, 43.0, "BRAKE", Color("#d45b55"))
+		_draw_action_button(handbrake_button, 38.0, "HANDBRK", Color("#bd8742"))
 	else:
 		_draw_action_button(jump_button, 48.0, "JUMP", Color("#4aa8e8"))
 		_draw_action_button(sprint_button, 37.0, "RUN", Color("#54b98a"))
@@ -131,11 +135,18 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 		touches[index] = "brake"
 		brake_pressed = true
 		_update_vehicle_controls()
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 52.0:
+		touches[index] = "handbrake"
+		handbrake_pressed = true
+		vehicle.call("set_handbrake", true)
 	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 55.0:
 		touches[index] = "vehicle"
 		vehicle.call("toggle_player")
 		gas_pressed = false
 		brake_pressed = false
+		handbrake_pressed = false
+		if vehicle != null:
+			vehicle.call("set_handbrake", false)
 		_update_vehicle_controls()
 		hud.queue_redraw()
 	elif pos.distance_to(jump_button) <= 58.0:
@@ -167,6 +178,10 @@ func _end_touch(index: int) -> void:
 	elif role == "brake":
 		brake_pressed = false
 		_update_vehicle_controls()
+	elif role == "handbrake":
+		handbrake_pressed = false
+		if vehicle != null:
+			vehicle.call("set_handbrake", false)
 
 func _update_stick(pos: Vector2) -> void:
 	stick_vector = ((pos - pad_center) / pad_radius).limit_length(1.0)
