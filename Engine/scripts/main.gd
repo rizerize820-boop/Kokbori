@@ -49,6 +49,7 @@ func _material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.82
+	mat.vertex_color_use_as_albedo = true
 	# OSM polygons do not have a guaranteed winding order. Render both sides
 	# so building walls, park polygons and road surfaces cannot vanish.
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
