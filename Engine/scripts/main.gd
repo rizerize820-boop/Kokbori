@@ -434,6 +434,7 @@ const OSM_LAT_METERS := 111320.0
 const OSM_MAX_FEATURES := 50000
 const OSM_RENDER_RADIUS := 6000.0
 const OSM_FACADE_RADIUS := 2500.0
+const OSM_COLLISION_RADIUS := 6000.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
@@ -533,6 +534,18 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 		points.remove_at(points.size() - 1)
 	if points.size() < 3:
 		return
+	var footprint_center := Vector2.ZERO
+	var min_x := INF
+	var max_x := -INF
+	var min_z := INF
+	var max_z := -INF
+	for point in points:
+		footprint_center += point
+		min_x = minf(min_x, point.x)
+		max_x = maxf(max_x, point.x)
+		min_z = minf(min_z, point.y)
+		max_z = maxf(max_z, point.y)
+	footprint_center /= float(points.size())
 	var height := 9.3
 	var tagged_height := str(properties.get("height", "")).replace(" m", "").replace("m", "")
 	if tagged_height.is_valid_float():
@@ -544,6 +557,16 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	var triangles := Geometry2D.triangulate_polygon(points)
 	if triangles.is_empty():
 		return
+	if footprint_center.length() <= OSM_COLLISION_RADIUS:
+		var building_body := StaticBody3D.new()
+		building_body.name = "BuildingCollision"
+		var building_shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(maxf(1.0, max_x - min_x), height, maxf(1.0, max_z - min_z))
+		building_shape.shape = box
+		building_shape.position = Vector3(footprint_center.x, height * 0.5, footprint_center.y)
+		building_body.add_child(building_shape)
+		add_child(building_body)
 	var facade_color := _osm_color(str(properties.get("facade_colour", "")), Color("#aeb8bf"))
 	var roof_color := _osm_color(str(properties.get("roof_colour", "")), Color("#68747d"))
 	var walls: SurfaceTool = _osm_surfaces["walls"]
