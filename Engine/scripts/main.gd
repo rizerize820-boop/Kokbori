@@ -373,18 +373,35 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 	else:
 		width = 1.5
 		mat = materials["grass"]
+
+	# Build an entire OSM way as one mesh instead of one MeshInstance3D
+	# per segment. This sharply reduces scene-node and draw-call overhead.
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var added := false
 	for i in range(coords.size() - 1):
 		var a := _osm_point(coords[i])
 		var b := _osm_point(coords[i + 1])
-		var delta := b - a
-		var length := Vector2(delta.x, delta.z).length()
+		var delta := Vector2(b.x - a.x, b.z - a.z)
+		var length := delta.length()
 		if length < 0.5 or length > 250.0:
 			continue
-		var segment := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(width, 0.12, length)
-		segment.mesh = box
-		segment.material_override = mat
-		segment.position = (a + b) * 0.5
-		segment.rotation.y = atan2(delta.x, delta.z)
-		add_child(segment)
+		var side := Vector2(-delta.y, delta.x).normalized() * width * 0.5
+		var p1 := Vector3(a.x + side.x, 0.065, a.z + side.y)
+		var p2 := Vector3(a.x - side.x, 0.065, a.z - side.y)
+		var p3 := Vector3(b.x - side.x, 0.065, b.z - side.y)
+		var p4 := Vector3(b.x + side.x, 0.065, b.z + side.y)
+		surface.add_vertex(p1)
+		surface.add_vertex(p2)
+		surface.add_vertex(p3)
+		surface.add_vertex(p1)
+		surface.add_vertex(p3)
+		surface.add_vertex(p4)
+		added = true
+	if not added:
+		return
+	surface.generate_normals()
+	var instance := MeshInstance3D.new()
+	instance.mesh = surface.commit()
+	instance.material_override = mat
+	add_child(instance)
