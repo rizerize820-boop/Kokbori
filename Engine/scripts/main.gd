@@ -8,6 +8,7 @@ var materials: Dictionary = {}
 func _ready() -> void:
 	_build_materials()
 	_build_environment()
+	_build_street_grid()
 	_build_city()
 	var player := CharacterBody3D.new()
 	player.set_script(PlayerScript)
@@ -26,9 +27,14 @@ func _build_materials() -> void:
 	materials["building_b"] = _material(Color("#9fa9b2"))
 	materials["building_c"] = _material(Color("#c5b9a7"))
 	materials["glass"] = _material(Color("#38566c"))
+	(materials["glass"] as StandardMaterial3D).roughness = 0.34
+	(materials["glass"] as StandardMaterial3D).metallic = 0.18
 	materials["trim"] = _material(Color("#d7d9d6"))
 	materials["gold"] = _material(Color("#d9ae58"))
+	(materials["gold"] as StandardMaterial3D).roughness = 0.28
+	(materials["gold"] as StandardMaterial3D).metallic = 0.52
 	materials["water"] = _material(Color("#285d78"))
+	(materials["water"] as StandardMaterial3D).roughness = 0.22
 	materials["tree"] = _material(Color("#315c42"))
 	materials["trunk"] = _material(Color("#66513c"))
 
@@ -87,6 +93,23 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 	_solid_box(self, Vector3(0, -0.3, 0), Vector3(220, 0.5, 220), materials["grass"])
+
+func _build_street_grid() -> void:
+	# Secondary streets create a connected city grid around the central avenue.
+	for x in [-37.0, 37.0]:
+		_visual_box(self, Vector3(x, -0.012, 0), Vector3(7.0, 0.075, 150.0), materials["road"])
+		_visual_box(self, Vector3(x - 4.5, 0.055, 0), Vector3(1.5, 0.13, 150.0), materials["sidewalk"])
+		_visual_box(self, Vector3(x + 4.5, 0.055, 0), Vector3(1.5, 0.13, 150.0), materials["sidewalk"])
+	for z in [-40.0, 40.0]:
+		_visual_box(self, Vector3(0, -0.01, z), Vector3(150.0, 0.075, 7.0), materials["road"])
+		_visual_box(self, Vector3(0, 0.055, z - 4.5), Vector3(150.0, 0.13, 1.5), materials["sidewalk"])
+		_visual_box(self, Vector3(0, 0.055, z + 4.5), Vector3(150.0, 0.13, 1.5), materials["sidewalk"])
+	for x in [-37.0, 37.0]:
+		for z in range(-64, 65, 16):
+			_visual_box(self, Vector3(x, 0.035, float(z)), Vector3(0.12, 0.02, 2.4), materials["line"])
+	for z in [-40.0, 40.0]:
+		for x in range(-64, 65, 16):
+			_visual_box(self, Vector3(float(x), 0.035, z), Vector3(2.4, 0.02, 0.12), materials["line"])
 
 func _build_city() -> void:
 	# Main avenue, side streets and sidewalks.
