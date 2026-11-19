@@ -47,8 +47,8 @@ func _physics_process(delta: float) -> void:
 	)
 	if input_dir.length() > 1.0:
 		input_dir = input_dir.normalized()
-	var forward := -global_transform.basis.z
-	var right := global_transform.basis.x
+	var forward := -camera_pivot.global_transform.basis.z
+	var right := camera_pivot.global_transform.basis.x
 	var direction := (right * input_dir.x + forward * -input_dir.y).normalized()
 	var target := direction * move_speed
 	velocity.x = move_toward(velocity.x, target.x, acceleration * delta)
@@ -63,7 +63,7 @@ func _physics_process(delta: float) -> void:
 
 func apply_look(screen_delta: Vector2) -> void:
 	# Dragging on the right half of the touchscreen rotates the camera.
-	rotation.y -= screen_delta.x * 0.006
+	camera_pivot.rotation.y -= screen_delta.x * 0.006
 	camera_pivot.rotation.x = clampf(
 		camera_pivot.rotation.x - screen_delta.y * 0.0045,
 		deg_to_rad(-65.0),
