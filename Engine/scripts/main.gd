@@ -58,7 +58,7 @@ func _ready() -> void:
 
 	# Spawn at the open forecourt south of Astana-Nurly Zhol, away from the map origin.
 	if use_osm:
-		var station_forecourt := _osm_point([71.53175, 51.11145])
+		var station_forecourt := _osm_point([71.53175, 51.10970])
 		camry.global_position = Vector3(station_forecourt.x + 3.5, 1.15, station_forecourt.z)
 		camry.global_rotation = Vector3.ZERO
 		player.global_position = Vector3(station_forecourt.x - 2.8, 1.0, station_forecourt.z + 1.0)
