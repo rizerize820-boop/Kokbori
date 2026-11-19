@@ -57,8 +57,8 @@ func _add_wheel(wheel_name: String, wheel_position: Vector3, steering_wheel: boo
 	wheel.suspension_travel = 0.22
 	wheel.suspension_stiffness = 25.0
 	wheel.suspension_max_force = 9000.0
-	wheel.damping_compression = 4.4
-	wheel.damping_relaxation = 2.3
+	wheel.suspension_damping_compression = 4.4
+	wheel.suspension_damping_relaxation = 2.3
 	wheel.wheel_friction_slip = 1.35
 	wheel.wheel_roll_influence = 0.08
 	add_child(wheel)
