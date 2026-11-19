@@ -3,6 +3,10 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "30 2 1 * *"
+  push:
+    paths:
+      - "tools/fetch_astana_osm.py"
+      - ".github/workflows/refresh-astana-osm.yml"
 permissions:
   contents: write
 jobs:
