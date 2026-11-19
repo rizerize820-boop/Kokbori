@@ -33,12 +33,43 @@ func _build_car() -> void:
 	if model_resource is PackedScene:
 		var model := (model_resource as PackedScene).instantiate()
 		model.name = "Camry_55_Model"
-		model.position = Vector3(0.0, 0.75, 0.0)
+		model.position = Vector3.ZERO
 		add_child(model)
+		# Imported vehicle files often have their origin below or above the wheels.
+		# Measure the actual mesh bounds and place the lowest point just above the road.
+		_fit_model_to_ground.call_deferred(model)
 	else:
 		push_warning("Could not load res://assets/vehicles/admiral.glb; using fallback car body.")
 		_add_box("Fallback Camry body", Vector3(0, 0.67, 0), Vector3(1.92, 0.62, 4.35), Color("#202832"))
 		_add_box("Fallback roof", Vector3(0, 1.48, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
+
+
+func _fit_model_to_ground(model: Node3D) -> void:
+	if not is_instance_valid(model):
+		return
+	var found_mesh := false
+	var bounds := AABB()
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			continue
+		var mesh_bounds := mesh_instance.get_aabb()
+		var relative_transform := model.global_transform.affine_inverse() * mesh_instance.global_transform
+		for corner_index in range(8):
+			var corner := mesh_bounds.get_endpoint(corner_index)
+			var point := relative_transform * corner
+			if not found_mesh:
+				bounds = AABB(point, Vector3.ZERO)
+				found_mesh = true
+			else:
+				bounds = bounds.expand(point)
+	if found_mesh:
+		# Vehicle root is spawned 0.15 m above the road; keep the mesh bottom
+		# at world Y=0.08 regardless of the GLB's original pivot and scale.
+		model.position.y = 0.08 - global_position.y - bounds.position.y
+	else:
+		push_warning("Imported vehicle model has no MeshInstance3D nodes; ground fitting skipped.")
+
 
 func _mat(color: Color, roughness: float = 0.55, metallic: float = 0.12) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
