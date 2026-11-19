@@ -56,7 +56,7 @@ func _material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.82
-	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_use_as_albedo = false
 	# OSM polygons do not have a guaranteed winding order. Render both sides
 	# so building walls, park polygons and road surfaces cannot vanish.
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -463,7 +463,11 @@ func _commit_osm_surface(key: String, mat: Material) -> void:
 		return
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
-	instance.material_override = mat
+	var surface_material: StandardMaterial3D = mat as StandardMaterial3D
+	if key == "walls" or key == "roofs":
+		surface_material = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+		surface_material.vertex_color_use_as_albedo = true
+	instance.material_override = surface_material
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(instance)
 
