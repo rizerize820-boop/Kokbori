@@ -16,6 +16,8 @@ QUERY = f"""[out:json][timeout:240];
   way[highway]({SOUTH},{WEST},{NORTH},{EAST});
   way[waterway]({SOUTH},{WEST},{NORTH},{EAST});
   way[leisure~"park|garden|playground"]({SOUTH},{WEST},{NORTH},{EAST});
+  way[landuse~"grass|forest|meadow|recreation_ground"]({SOUTH},{WEST},{NORTH},{EAST});
+  way[natural~"water|wood"]({SOUTH},{WEST},{NORTH},{EAST});
 );
 out tags geom;
 """
@@ -43,9 +45,13 @@ def main():
             continue
         tags = element.get("tags", {})
         coords = [[p["lon"], p["lat"]] for p in points]
-        if "building" in tags and len(coords) >= 4 and coords[0] == coords[-1]:
+        closed = len(coords) >= 4 and coords[0] == coords[-1]
+        if "building" in tags and closed:
             geometry = {"type": "Polygon", "coordinates": [coords]}
             kind = "building"
+        elif closed and ("leisure" in tags or "landuse" in tags or tags.get("natural") in ("water", "wood")):
+            geometry = {"type": "Polygon", "coordinates": [coords]}
+            kind = "water_area" if tags.get("natural") == "water" else "green_area"
         else:
             geometry = {"type": "LineString", "coordinates": coords}
             kind = "road" if "highway" in tags else ("water" if "waterway" in tags else "park")
@@ -53,10 +59,18 @@ def main():
             "type": "Feature",
             "properties": {
                 "kind": kind,
-                "height": tags.get("height", ""),
-                "levels": tags.get("building:levels", ""),
+                "height": tags.get("height", tags.get("building:height", "")),
+                "levels": tags.get("building:levels", tags.get("levels", "")),
                 "name": tags.get("name", ""),
                 "highway": tags.get("highway", ""),
+                "building": tags.get("building", ""),
+                "facade_colour": tags.get("building:facade:colour", tags.get("building:colour", "")),
+                "roof_colour": tags.get("roof:colour", ""),
+                "roof_shape": tags.get("roof:shape", ""),
+                "roof_height": tags.get("roof:height", ""),
+                "surface": tags.get("surface", ""),
+                "lanes": tags.get("lanes", ""),
+                "width": tags.get("width", ""),
             },
             "geometry": geometry,
         })
