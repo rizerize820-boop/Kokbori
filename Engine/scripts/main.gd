@@ -18,11 +18,11 @@ func _ready() -> void:
 	# which left the client showing only the blue clear-color screen.
 	var player := CharacterBody3D.new()
 	player.set_script(PlayerScript)
-	player.position = Vector3(-1.0, 0.15, 38.0)
+	player.position = Vector3(-2.8, 0.15, 0.0)
 	add_child(player)
 	var camry := CharacterBody3D.new()
 	camry.set_script(VehicleScript)
-	camry.position = Vector3(2.5, 0.15, 35.0)
+	camry.position = Vector3(0.0, 0.35, 0.0)
 	add_child(camry)
 	camry.call("set_driver", player)
 	var controls := CanvasLayer.new()
@@ -152,16 +152,21 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#b8c8dc")
-	env.ambient_light_energy = 0.82
+	env.ambient_light_energy = 0.95
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color("#b8c5ce")
-	env.fog_density = 0.0009
+	env.fog_density = 0.00065
+	env.glow_enabled = true
+	env.glow_intensity = 0.28
+	env.glow_strength = 0.55
 	world.environment = env
 	add_child(world)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
-	sun.light_energy = 1.15
+	sun.light_energy = 1.3
+	sun.directional_shadow_max_distance = 180.0
+	sun.shadow_bias = 0.035
 	sun.shadow_enabled = true
 	add_child(sun)
 	var ground_size := 16000.0 if FileAccess.file_exists("res://data/astana_osm.geojson") else 220.0
