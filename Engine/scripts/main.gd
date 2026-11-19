@@ -29,6 +29,10 @@ func _build_materials() -> void:
 	materials["building_a"] = _material(Color("#b8b9b4"))
 	materials["building_b"] = _material(Color("#9fa9b2"))
 	materials["building_c"] = _material(Color("#c5b9a7"))
+	materials["window_glass"] = _material(Color("#243f55"))
+	(materials["window_glass"] as StandardMaterial3D).roughness = 0.22
+	(materials["window_glass"] as StandardMaterial3D).metallic = 0.24
+	materials["facade_trim"] = _material(Color("#d6d4ca"))
 	materials["glass"] = _material(Color("#38566c"))
 	(materials["glass"] as StandardMaterial3D).roughness = 0.34
 	(materials["glass"] as StandardMaterial3D).metallic = 0.18
@@ -250,7 +254,7 @@ func _build_osm_city() -> void:
 
 	# Combine geometry into a small number of shared meshes. Creating one node
 	# per building/road way made the full-city scene too expensive for iPhones.
-	for key in ["walls", "roofs", "roads", "paths", "water_lines", "green", "water_areas"]:
+	for key in ["walls", "roofs", "windows", "facade_trim", "roads", "paths", "water_lines", "green", "water_areas"]:
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		_osm_surfaces[key] = tool
@@ -282,6 +286,8 @@ func _build_osm_city() -> void:
 
 	_commit_osm_surface("walls", materials["building_a"])
 	_commit_osm_surface("roofs", materials["building_b"])
+	_commit_osm_surface("windows", materials["window_glass"])
+	_commit_osm_surface("facade_trim", materials["facade_trim"])
 	_commit_osm_surface("roads", materials["road"])
 	_commit_osm_surface("paths", materials["sidewalk"])
 	_commit_osm_surface("water_lines", materials["water"])
@@ -335,6 +341,51 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 		for j in range(3):
 			var p := points[triangles[i + j]]
 			roof.add_vertex(Vector3(p.x, height, p.y))
+
+	# Add repeated, scale-aware facade windows and floor bands to OSM buildings.
+	# Geometry is batched into shared meshes to keep draw calls low on iPhone.
+	var windows: SurfaceTool = _osm_surfaces["windows"]
+	var trim: SurfaceTool = _osm_surfaces["facade_trim"]
+	var floors := maxi(1, int(floor(height / 3.2)))
+	for i in range(points.size()):
+		var a := points[i]
+		var b := points[(i + 1) % points.size()]
+		var edge := b - a
+		var edge_len := edge.length()
+		if edge_len < 3.2:
+			continue
+		var tangent := edge / edge_len
+		var outward := Vector2(tangent.y, -tangent.x)
+		var count := maxi(1, int(floor(edge_len / 3.0)))
+		for floor_index in range(floors):
+			var y := 1.35 + float(floor_index) * 3.2
+			if y + 1.45 > height:
+				continue
+			# Continuous narrow belt between floors.
+			_add_osm_quad(trim,
+				Vector3(a.x + outward.x * 0.035, y - 0.12, a.y + outward.y * 0.035),
+				Vector3(b.x + outward.x * 0.035, y - 0.12, b.y + outward.y * 0.035),
+				Vector3(b.x + outward.x * 0.035, y - 0.04, b.y + outward.y * 0.035),
+				Vector3(a.x + outward.x * 0.035, y - 0.04, a.y + outward.y * 0.035))
+			for window_index in range(count):
+				var center := (float(window_index) + 0.5) / float(count)
+				var half_w := minf(0.58, edge_len / float(count) * 0.28)
+				var center_point := a + edge * center
+				var left := center_point - tangent * half_w + outward * 0.045
+				var right := center_point + tangent * half_w + outward * 0.045
+				_add_osm_quad(windows,
+					Vector3(left.x, y, left.y),
+					Vector3(right.x, y, right.y),
+					Vector3(right.x, y + 1.35, right.y),
+					Vector3(left.x, y + 1.35, left.y))
+
+func _add_osm_quad(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	surface.add_vertex(a)
+	surface.add_vertex(b)
+	surface.add_vertex(c)
+	surface.add_vertex(a)
+	surface.add_vertex(c)
+	surface.add_vertex(d)
 
 func _add_osm_area(ring: Array, kind: String) -> void:
 	var points := PackedVector2Array()
