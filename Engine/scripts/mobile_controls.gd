@@ -88,7 +88,7 @@ func _draw_hud() -> void:
 	if vehicle != null and (driving_now or bool(vehicle.call("can_enter"))):
 		_draw_action_button(vehicle_button, 60.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
 		if driving_now:
-			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H", HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
+			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H" + ("  GAS" if gas_pressed else ""), HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
 	hud.draw_string(font, Vector2(screen_size.x * 0.50 - 46.0, 34), "FREE CAMERA", HORIZONTAL_ALIGNMENT_CENTER, 140, 13, Color("#e4edf4", 0.78))
 
 func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
@@ -124,22 +124,20 @@ func _input(event: InputEvent) -> void:
 func _begin_touch(index: int, pos: Vector2) -> void:
 	if touches.has(index):
 		return
-	if pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
-		touches[index] = "move"
-		_update_stick(pos)
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 112.0:
+	# Check driving controls before the joystick so compact screens cannot swallow GAS.
+	if vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 125.0:
 		touches[index] = "gas"
 		gas_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 98.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 105.0:
 		touches[index] = "brake"
 		brake_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 86.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 90.0:
 		touches[index] = "handbrake"
 		handbrake_pressed = true
 		vehicle.call("set_handbrake", true)
-	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 92.0:
+	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 100.0:
 		touches[index] = "vehicle"
 		vehicle.call("toggle_player")
 		gas_pressed = false
@@ -149,6 +147,9 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 			vehicle.call("set_handbrake", false)
 		_update_vehicle_controls()
 		hud.queue_redraw()
+	elif pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
+		touches[index] = "move"
+		_update_stick(pos)
 	elif pos.distance_to(jump_button) <= 84.0:
 		touches[index] = "jump"
 		if player != null:
