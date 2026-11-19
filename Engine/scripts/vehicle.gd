@@ -31,9 +31,12 @@ func _build_car() -> void:
 	collision.shape = shape
 	collision.position.y = 0.625
 	# The collider's bottom is aligned with the vehicle root, which rests on Y=0.
-	floor_snap_length = 0.35
+	floor_snap_length = 0.55
 	floor_stop_on_slope = true
-	safe_margin = 0.02
+	safe_margin = 0.04
+	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	collision_layer = 1
+	collision_mask = 1
 	add_child(collision)
 
 	var model_resource := load("res://assets/vehicles/admiral.glb")
@@ -73,7 +76,7 @@ func _fit_model_to_ground(model: Node3D) -> void:
 	if found_mesh:
 		# Vehicle root is spawned 0.15 m above the road; keep the mesh bottom
 		# at world Y=0.08 regardless of the GLB's original pivot and scale.
-		model.position.y = -bounds.position.y
+		model.position.y = 0.04 - bounds.position.y
 	else:
 		push_warning("Imported vehicle model has no MeshInstance3D nodes; ground fitting skipped.")
 
@@ -118,7 +121,7 @@ func toggle_player() -> void:
 		if driver_mesh != null:
 			driver_mesh.visible = false
 		# Keep the player separate from the vehicle physics body.
-		driver.global_position = global_position + Vector3.UP * 0.85
+		driver.global_position = global_position + Vector3.UP * 0.9
 		driver.global_rotation = global_rotation
 	else:
 		driving = false
@@ -181,9 +184,12 @@ func _physics_process(delta: float) -> void:
 	if absf(speed) > 0.35:
 		rotate_y(-steering_smooth * STEERING_RATE * steer_factor * handbrake_factor * signf(speed) * delta)
 
-	velocity = -global_transform.basis.z * speed
-	# Let the floor snap settle the chassis instead of constantly forcing it downward.
-	velocity.y = -1.0 if not is_on_floor() else 0.0
+	velocity.x = -global_transform.basis.z.x * speed
+	velocity.z = -global_transform.basis.z.z * speed
+	if not is_on_floor():
+		velocity.y -= 22.0 * delta
+	else:
+		velocity.y = -0.15
 	move_and_slide()
 	for child in get_children():
 		if child is Node3D and child.has_meta("front_wheel"):
