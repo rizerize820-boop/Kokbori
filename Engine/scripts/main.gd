@@ -425,14 +425,10 @@ func _build_osm_city() -> void:
 	var file := FileAccess.open("res://data/astana_osm.geojson", FileAccess.READ)
 	if file == null:
 		push_error("Astana map data is missing.")
-		_build_street_grid()
-		_build_city()
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("features"):
 		push_error("Astana OSM snapshot is invalid.")
-		_build_street_grid()
-		_build_city()
 		return
 
 	# Combine geometry into a small number of shared meshes. Creating one node
