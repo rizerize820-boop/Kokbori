@@ -7,7 +7,7 @@ const VehicleScript = preload("res://scripts/vehicle.gd")
 var materials: Dictionary = {}
 var loading_layer: CanvasLayer
 
-const OSM_MAX_FILE_BYTES := 2000000
+const OSM_MAX_FILE_BYTES := 100000000
 
 func _ready() -> void:
 	_build_materials()
@@ -431,9 +431,9 @@ func _add_lamp(pos: Vector3) -> void:
 const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
-const OSM_MAX_FEATURES := 16000
-const OSM_RENDER_RADIUS := 3200.0
-const OSM_FACADE_RADIUS := 1100.0
+const OSM_MAX_FEATURES := 50000
+const OSM_RENDER_RADIUS := 6000.0
+const OSM_FACADE_RADIUS := 2500.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
