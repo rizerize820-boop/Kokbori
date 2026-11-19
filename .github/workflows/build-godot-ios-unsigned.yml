@@ -57,6 +57,9 @@ jobs:
           APP="$(find "$RUNNER_TEMP/KOKBORI-Godot-DerivedData/Build/Products" -maxdepth 3 -name '*.app' -print -quit)"
           test -n "$APP"
           test -d "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist" > "$RUNNER_TEMP/device-family.txt"
+          grep -Eq '1' "$RUNNER_TEMP/device-family.txt" || { echo "ERROR: iOS app is not marked for iPhone devices"; cat "$RUNNER_TEMP/device-family.txt"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -qx 'com.kokbori.rp'
           mkdir -p Payload
           cp -R "$APP" Payload/KOKBORI-RP.app
           /usr/bin/zip -qry KOKBORI-Godot-iOS-unsigned.ipa Payload
