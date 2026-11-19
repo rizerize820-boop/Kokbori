@@ -255,13 +255,16 @@ func _build_osm_city() -> void:
 		var properties: Dictionary = feature.get("properties", {})
 		var kind := str(properties.get("kind", ""))
 		var coords: Array = geometry.get("coordinates", [])
-		if kind == "building" and geometry.get("type", "") == "Polygon" and not coords.is_empty():
+		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
 			var ring: Array = coords[0]
 			if ring.size() >= 4:
-				_add_osm_building(ring, properties)
+				if kind == "building":
+					_add_osm_building(ring, properties)
+				else:
+					_add_osm_area(ring, kind)
 				processed += 1
 		elif geometry.get("type", "") == "LineString" and coords.size() >= 2:
-			_add_osm_line(coords, kind, str(properties.get("highway", "")))
+			_add_osm_line(coords, kind, properties)
 			processed += 1
 	print("Loaded ", processed, " Astana OpenStreetMap features. © OpenStreetMap contributors")
 
@@ -274,7 +277,7 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 		points.remove_at(points.size() - 1)
 	if points.size() < 3:
 		return
-	var height := 10.0
+	var height := 9.3
 	var tagged_height := str(properties.get("height", "")).replace(" m", "").replace("m", "")
 	if tagged_height.is_valid_float():
 		height = clampf(float(tagged_height), 3.0, 180.0)
@@ -285,33 +288,85 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	var triangles := Geometry2D.triangulate_polygon(points)
 	if triangles.is_empty():
 		return
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(0, triangles.size(), 3):
-		for j in range(3):
-			var p := points[triangles[i + j]]
-			st.add_vertex(Vector3(p.x, height, p.y))
+	var facade := StandardMaterial3D.new()
+	facade.albedo_color = Color.from_string(str(properties.get("facade_colour", "")), Color("#a9adb0"))
+	facade.roughness = 0.86
+	facade.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var walls := SurfaceTool.new()
+	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range(points.size()):
 		var a := points[i]
 		var b := points[(i + 1) % points.size()]
-		st.add_vertex(Vector3(a.x, 0, a.y))
-		st.add_vertex(Vector3(b.x, 0, b.y))
-		st.add_vertex(Vector3(b.x, height, b.y))
-		st.add_vertex(Vector3(a.x, 0, a.y))
-		st.add_vertex(Vector3(b.x, height, b.y))
-		st.add_vertex(Vector3(a.x, height, a.y))
-	st.generate_normals()
-	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.mesh = st.commit()
-	mesh_instance.material_override = materials["building_a"]
-	add_child(mesh_instance)
+		walls.add_vertex(Vector3(a.x, 0, a.y))
+		walls.add_vertex(Vector3(b.x, 0, b.y))
+		walls.add_vertex(Vector3(b.x, height, b.y))
+		walls.add_vertex(Vector3(a.x, 0, a.y))
+		walls.add_vertex(Vector3(b.x, height, b.y))
+		walls.add_vertex(Vector3(a.x, height, a.y))
+	walls.generate_normals()
+	var wall_instance := MeshInstance3D.new()
+	wall_instance.mesh = walls.commit()
+	wall_instance.material_override = facade
+	add_child(wall_instance)
+	var roof := SurfaceTool.new()
+	roof.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(0, triangles.size(), 3):
+		for j in range(3):
+			var p := points[triangles[i + j]]
+			roof.add_vertex(Vector3(p.x, height, p.y))
+	roof.generate_normals()
+	var roof_mat := StandardMaterial3D.new()
+	roof_mat.albedo_color = Color.from_string(str(properties.get("roof_colour", "")), Color("#777b7d"))
+	roof_mat.roughness = 0.9
+	roof_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var roof_instance := MeshInstance3D.new()
+	roof_instance.mesh = roof.commit()
+	roof_instance.material_override = roof_mat
+	add_child(roof_instance)
 
-func _add_osm_line(coords: Array, kind: String, highway: String) -> void:
+func _add_osm_area(ring: Array, kind: String) -> void:
+	var points := PackedVector2Array()
+	for coord in ring:
+		var p := _osm_point(coord)
+		points.append(Vector2(p.x, p.z))
+	if points.size() > 3 and points[0].is_equal_approx(points[points.size() - 1]):
+		points.remove_at(points.size() - 1)
+	if points.size() < 3:
+		return
+	var indices := Geometry2D.triangulate_polygon(points)
+	if indices.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(0, indices.size(), 3):
+		for j in range(3):
+			var p := points[indices[i + j]]
+			st.add_vertex(Vector3(p.x, 0.035, p.y))
+	st.generate_normals()
+	var mat: Material = materials["water"] if kind == "water_area" else materials["grass"]
+	var instance := MeshInstance3D.new()
+	instance.mesh = st.commit()
+	instance.material_override = mat
+	add_child(instance)
+
+func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
+	var highway := str(properties.get("highway", ""))
 	var width := 0.8
 	var mat: Material = materials["sidewalk"]
 	if kind == "road":
-		width = 5.0 if highway in ["motorway", "trunk", "primary", "secondary"] else 2.8
-		mat = materials["road"]
+		var road_widths := {
+			"motorway": 15.0, "trunk": 12.0, "primary": 10.0,
+			"secondary": 8.0, "tertiary": 6.5, "residential": 5.5,
+			"living_street": 4.5, "service": 3.5, "footway": 1.4,
+			"path": 1.2, "cycleway": 1.8, "pedestrian": 3.0
+		}
+		width = float(road_widths.get(highway, 3.0))
+		var tagged_width := str(properties.get("width", "")).replace(" m", "").replace("m", "")
+		if tagged_width.is_valid_float():
+			width = clampf(float(tagged_width), 1.0, 24.0)
+		elif str(properties.get("lanes", "")).is_valid_float():
+			width = clampf(float(properties.get("lanes")) * 3.2, 2.5, 24.0)
+		mat = materials["road"] if highway not in ["footway", "path", "cycleway", "pedestrian"] else materials["sidewalk"]
 	elif kind == "water":
 		width = 3.0
 		mat = materials["water"]
