@@ -10,6 +10,7 @@ func _ready() -> void:
 	_build_environment()
 	if FileAccess.file_exists("res://data/astana_osm.geojson"):
 		await _build_osm_city()
+		_build_baiterek()
 	else:
 		_build_street_grid()
 		_build_city()
@@ -177,6 +178,142 @@ func _build_city() -> void:
 	sphere.material_override = materials["gold"]
 	add_child(sphere)
 	_visual_box(self, Vector3(0, 17.5, -43), Vector3(5.5, 0.35, 5.5), materials["trim"])
+
+func _baiterek_segment(parent: Node3D, start: Vector3, finish: Vector3, radius: float, mat: Material) -> void:
+	var direction := finish - start
+	var mesh_instance := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius * 0.82
+	cylinder.bottom_radius = radius
+	cylinder.height = direction.length()
+	cylinder.radial_segments = 16
+	mesh_instance.mesh = cylinder
+	mesh_instance.material_override = mat
+	mesh_instance.position = (start + finish) * 0.5
+	mesh_instance.quaternion = Quaternion(Vector3.UP, direction.normalized())
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	parent.add_child(mesh_instance)
+
+func _build_baiterek() -> void:
+	# Approximate real-world Baiterek location, projected using the same OSM origin.
+	var p := _osm_point([71.4304, 51.1282])
+	var base := Vector3(p.x, 0.0, p.z)
+	var landmark := Node3D.new()
+	landmark.name = "Baiterek_Realistic_Landmark"
+	landmark.position = base
+	add_child(landmark)
+
+	var stone := _material(Color("#c8c9c4"))
+	var white_metal := _material(Color("#dce2e4"))
+	white_metal.metallic = 0.72
+	white_metal.roughness = 0.24
+	var gold_glass := _material(Color("#d9a92e"))
+	gold_glass.metallic = 0.68
+	gold_glass.roughness = 0.16
+	gold_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gold_glass.albedo_color.a = 0.94
+	var dark_glass := _material(Color("#354b59"))
+	dark_glass.metallic = 0.42
+	dark_glass.roughness = 0.2
+
+	# Broad public plaza and a low circular stone podium.
+	var plaza := CylinderMesh.new()
+	plaza.top_radius = 17.0
+	plaza.bottom_radius = 19.0
+	plaza.height = 0.55
+	plaza.radial_segments = 48
+	var plaza_node := MeshInstance3D.new()
+	plaza_node.mesh = plaza
+	plaza_node.material_override = stone
+	plaza_node.position.y = 0.28
+	landmark.add_child(plaza_node)
+
+	var podium := CylinderMesh.new()
+	podium.top_radius = 7.0
+	podium.bottom_radius = 9.5
+	podium.height = 2.4
+	podium.radial_segments = 40
+	var podium_node := MeshInstance3D.new()
+	podium_node.mesh = podium
+	podium_node.material_override = white_metal
+	podium_node.position.y = 1.45
+	landmark.add_child(podium_node)
+
+	# Four tapered structural legs converge toward the observation sphere.
+	var leg_angles := [0.0, PI * 0.5, PI, PI * 1.5]
+	for angle in leg_angles:
+		var radial := Vector3(cos(angle), 0.0, sin(angle))
+		_baiterek_segment(landmark, radial * 6.4 + Vector3.UP * 2.0,
+			radial * 1.15 + Vector3.UP * 75.0, 0.78, white_metal)
+		# Fine gold inlay along each main support.
+		_baiterek_segment(landmark, radial * 6.0 + Vector3.UP * 3.0,
+			radial * 1.35 + Vector3.UP * 73.0, 0.10, materials["gold"])
+
+	# Central mast and collars make the tall silhouette readable from far away.
+	_baiterek_segment(landmark, Vector3(0, 5, 0), Vector3(0, 83, 0), 0.62, white_metal)
+	for y in [12.0, 28.0, 44.0, 60.0, 74.0]:
+		var collar := TorusMesh.new()
+		collar.inner_radius = 0.68
+		collar.outer_radius = 0.88
+		collar.rings = 8
+		collar.ring_segments = 24
+		var collar_node := MeshInstance3D.new()
+		collar_node.mesh = collar
+		collar_node.material_override = materials["gold"]
+		collar_node.position.y = y
+		landmark.add_child(collar_node)
+
+	# Large golden glass orb, with subtle structural latitude/longitude rings.
+	var orb := MeshInstance3D.new()
+	var orb_mesh := SphereMesh.new()
+	orb_mesh.radius = 11.2
+	orb_mesh.height = 22.4
+	orb_mesh.radial_segments = 48
+	orb_mesh.rings = 32
+	orb.mesh = orb_mesh
+	orb.material_override = gold_glass
+	orb.position.y = 85.0
+	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	landmark.add_child(orb)
+
+	for y_offset in [-6.0, -3.0, 0.0, 3.0, 6.0]:
+		var ring_radius := sqrt(maxf(0.1, 11.2 * 11.2 - y_offset * y_offset))
+		var ring_mesh := TorusMesh.new()
+		ring_mesh.inner_radius = ring_radius - 0.10
+		ring_mesh.outer_radius = ring_radius + 0.10
+		ring_mesh.rings = 6
+		ring_mesh.ring_segments = 48
+		var ring_node := MeshInstance3D.new()
+		ring_node.mesh = ring_mesh
+		ring_node.material_override = white_metal
+		ring_node.position.y = 85.0 + y_offset
+		landmark.add_child(ring_node)
+
+	# Thin vertical ribs on the orb give it a glazed, engineered finish.
+	for index in range(16):
+		var angle := TAU * float(index) / 16.0
+		var rib := MeshInstance3D.new()
+		var rib_mesh := CylinderMesh.new()
+		rib_mesh.top_radius = 0.055
+		rib_mesh.bottom_radius = 0.055
+		rib_mesh.height = 19.5
+		rib_mesh.radial_segments = 6
+		rib.mesh = rib_mesh
+		rib.material_override = white_metal
+		rib.position = Vector3(cos(angle) * 10.95, 85.0, sin(angle) * 10.95)
+		landmark.add_child(rib)
+
+	# Small warm lights around the base and orb perimeter.
+	for index in range(12):
+		var angle := TAU * float(index) / 12.0
+		var light := OmniLight3D.new()
+		light.light_color = Color("#ffd98a")
+		light.light_energy = 0.55
+		light.omni_range = 8.0
+		light.position = Vector3(cos(angle) * 8.5, 4.0, sin(angle) * 8.5)
+		landmark.add_child(light)
+
+	print("Built detailed Baiterek landmark at its mapped Astana coordinates.")
 
 func _add_windows(parent: Node3D, width: float, height: float) -> void:
 	var window_mesh := BoxMesh.new()
