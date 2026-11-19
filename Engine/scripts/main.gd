@@ -232,6 +232,49 @@ func _osm_point(coord: Array) -> Vector3:
 	var z := -(float(coord[1]) - OSM_ORIGIN_LAT) * OSM_LAT_METERS
 	return Vector3(x, 0.0, z)
 
+func _osm_rings_to_points(rings: Array) -> Array:
+	var result: Array = []
+	for ring in rings:
+		var points := PackedVector2Array()
+		for coord in ring:
+			var p := _osm_point(coord)
+			points.append(Vector2(p.x, p.z))
+		if points.size() > 3 and points[0].is_equal_approx(points[points.size() - 1]):
+			points.remove_at(points.size() - 1)
+		if points.size() >= 3:
+			result.append(points)
+	return result
+
+# Geometry2D triangulation accepts a single simple ring. Subtract each
+# inner ring first; the resulting simple polygons can then be triangulated.
+func _polygon_pieces_with_holes(rings: Array) -> Array:
+	if rings.is_empty():
+		return []
+	var pieces: Array = [rings[0]]
+	for hole_index in range(1, rings.size()):
+		var hole: PackedVector2Array = rings[hole_index]
+		var clipped_pieces: Array = []
+		for piece in pieces:
+			var clipped: Array[PackedVector2Array] = Geometry2D.clip_polygons(piece, hole)
+			for polygon in clipped:
+				if polygon.size() >= 3:
+					clipped_pieces.append(polygon)
+		pieces = clipped_pieces
+		if pieces.is_empty():
+			break
+	return pieces
+
+func _add_ring_walls(surface: SurfaceTool, ring: PackedVector2Array, height: float) -> void:
+	for i in range(ring.size()):
+		var a := ring[i]
+		var b := ring[(i + 1) % ring.size()]
+		surface.add_vertex(Vector3(a.x, 0, a.y))
+		surface.add_vertex(Vector3(b.x, 0, b.y))
+		surface.add_vertex(Vector3(b.x, height, b.y))
+		surface.add_vertex(Vector3(a.x, 0, a.y))
+		surface.add_vertex(Vector3(b.x, height, b.y))
+		surface.add_vertex(Vector3(a.x, height, a.y))
+
 func _build_osm_city() -> void:
 	var file := FileAccess.open("res://data/astana_osm.geojson", FileAccess.READ)
 	if file == null:
@@ -256,27 +299,23 @@ func _build_osm_city() -> void:
 		var kind := str(properties.get("kind", ""))
 		var coords: Array = geometry.get("coordinates", [])
 		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
-			var ring: Array = coords[0]
-			if ring.size() >= 4:
+			var rings: Array = coords
+			if not rings.is_empty() and rings[0].size() >= 4:
 				if kind == "building":
-					_add_osm_building(ring, properties)
+					_add_osm_building(rings, properties)
 				else:
-					_add_osm_area(ring, kind)
+					_add_osm_area(rings, kind)
 				processed += 1
 		elif geometry.get("type", "") == "LineString" and coords.size() >= 2:
 			_add_osm_line(coords, kind, properties)
 			processed += 1
 	print("Loaded ", processed, " Astana OpenStreetMap features. © OpenStreetMap contributors")
 
-func _add_osm_building(ring: Array, properties: Dictionary) -> void:
-	var points := PackedVector2Array()
-	for coord in ring:
-		var p := _osm_point(coord)
-		points.append(Vector2(p.x, p.z))
-	if points.size() > 3 and points[0].is_equal_approx(points[points.size() - 1]):
-		points.remove_at(points.size() - 1)
-	if points.size() < 3:
+func _add_osm_building(rings: Array, properties: Dictionary) -> void:
+	var point_rings := _osm_rings_to_points(rings)
+	if point_rings.is_empty():
 		return
+	var outer: PackedVector2Array = point_rings[0]
 	var height := 9.3
 	var tagged_height := str(properties.get("height", "")).replace(" m", "").replace("m", "")
 	if tagged_height.is_valid_float():
@@ -285,35 +324,40 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 		var levels := str(properties.get("levels", ""))
 		if levels.is_valid_float():
 			height = clampf(float(levels) * 3.1, 3.0, 180.0)
-	var triangles := Geometry2D.triangulate_polygon(points)
-	if triangles.is_empty():
+
+	var pieces := _polygon_pieces_with_holes(point_rings)
+	if pieces.is_empty():
 		return
 	var facade := StandardMaterial3D.new()
 	facade.albedo_color = Color.from_string(str(properties.get("facade_colour", "")), Color("#a9adb0"))
 	facade.roughness = 0.86
 	facade.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	# Extrude both the exterior boundary and courtyard boundaries.
 	var walls := SurfaceTool.new()
 	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(points.size()):
-		var a := points[i]
-		var b := points[(i + 1) % points.size()]
-		walls.add_vertex(Vector3(a.x, 0, a.y))
-		walls.add_vertex(Vector3(b.x, 0, b.y))
-		walls.add_vertex(Vector3(b.x, height, b.y))
-		walls.add_vertex(Vector3(a.x, 0, a.y))
-		walls.add_vertex(Vector3(b.x, height, b.y))
-		walls.add_vertex(Vector3(a.x, height, a.y))
+	for ring in point_rings:
+		_add_ring_walls(walls, ring, height)
 	walls.generate_normals()
 	var wall_instance := MeshInstance3D.new()
 	wall_instance.mesh = walls.commit()
 	wall_instance.material_override = facade
 	add_child(wall_instance)
+
+	# Triangulate the polygon after subtracting its inner rings, so roofs
+	# remain open above courtyards instead of filling them with triangles.
 	var roof := SurfaceTool.new()
 	roof.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(0, triangles.size(), 3):
-		for j in range(3):
-			var p := points[triangles[i + j]]
-			roof.add_vertex(Vector3(p.x, height, p.y))
+	var roof_vertices := 0
+	for piece in pieces:
+		var triangles := Geometry2D.triangulate_polygon(piece)
+		for i in range(0, triangles.size(), 3):
+			for j in range(3):
+				var p := piece[triangles[i + j]]
+				roof.add_vertex(Vector3(p.x, height, p.y))
+				roof_vertices += 1
+	if roof_vertices == 0:
+		return
 	roof.generate_normals()
 	var roof_mat := StandardMaterial3D.new()
 	roof_mat.albedo_color = Color.from_string(str(properties.get("roof_colour", "")), Color("#777b7d"))
@@ -324,24 +368,23 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	roof_instance.material_override = roof_mat
 	add_child(roof_instance)
 
-func _add_osm_area(ring: Array, kind: String) -> void:
-	var points := PackedVector2Array()
-	for coord in ring:
-		var p := _osm_point(coord)
-		points.append(Vector2(p.x, p.z))
-	if points.size() > 3 and points[0].is_equal_approx(points[points.size() - 1]):
-		points.remove_at(points.size() - 1)
-	if points.size() < 3:
-		return
-	var indices := Geometry2D.triangulate_polygon(points)
-	if indices.is_empty():
+func _add_osm_area(rings: Array, kind: String) -> void:
+	var point_rings := _osm_rings_to_points(rings)
+	var pieces := _polygon_pieces_with_holes(point_rings)
+	if pieces.is_empty():
 		return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in range(0, indices.size(), 3):
-		for j in range(3):
-			var p := points[indices[i + j]]
-			st.add_vertex(Vector3(p.x, 0.035, p.y))
+	var vertex_count := 0
+	for piece in pieces:
+		var indices := Geometry2D.triangulate_polygon(piece)
+		for i in range(0, indices.size(), 3):
+			for j in range(3):
+				var p := piece[indices[i + j]]
+				st.add_vertex(Vector3(p.x, 0.035, p.y))
+				vertex_count += 1
+	if vertex_count == 0:
+		return
 	st.generate_normals()
 	var mat: Material = materials["water"] if kind == "water_area" else materials["grass"]
 	var instance := MeshInstance3D.new()
