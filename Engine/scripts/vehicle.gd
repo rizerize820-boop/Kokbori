@@ -29,7 +29,11 @@ func _build_car() -> void:
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(2.05, 1.25, 4.55)
 	collision.shape = shape
-	collision.position.y = 0.78
+	collision.position.y = 0.625
+	# The collider's bottom is aligned with the vehicle root, which rests on Y=0.
+	floor_snap_length = 0.35
+	floor_stop_on_slope = true
+	safe_margin = 0.02
 	add_child(collision)
 
 	var model_resource := load("res://assets/vehicles/admiral.glb")
@@ -69,7 +73,7 @@ func _fit_model_to_ground(model: Node3D) -> void:
 	if found_mesh:
 		# Vehicle root is spawned 0.15 m above the road; keep the mesh bottom
 		# at world Y=0.08 regardless of the GLB's original pivot and scale.
-		model.position.y = 0.08 - global_position.y - bounds.position.y
+		model.position.y = -bounds.position.y
 	else:
 		push_warning("Imported vehicle model has no MeshInstance3D nodes; ground fitting skipped.")
 
@@ -175,7 +179,8 @@ func _physics_process(delta: float) -> void:
 		rotate_y(-steering_smooth * STEERING_RATE * steer_factor * handbrake_factor * signf(speed) * delta)
 
 	velocity = -global_transform.basis.z * speed
-	velocity.y = -1.0
+	# Let the floor snap settle the chassis instead of constantly forcing it downward.
+	velocity.y = -1.0 if not is_on_floor() else 0.0
 	move_and_slide()
 	for child in get_children():
 		if child is Node3D and child.has_meta("front_wheel"):
