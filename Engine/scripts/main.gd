@@ -386,9 +386,9 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 				Vector3(b.x + outward.x * 0.035, y - 0.04, b.y + outward.y * 0.035),
 				Vector3(a.x + outward.x * 0.035, y - 0.04, a.y + outward.y * 0.035))
 			for window_index in range(count):
-				var center := (float(window_index) + 0.5) / float(count)
+				var window_t := (float(window_index) + 0.5) / float(count)
 				var half_w := minf(0.58, edge_len / float(count) * 0.28)
-				var center_point := a + edge * center
+				var center_point := a + edge * window_t
 				var left := center_point - tangent * half_w + outward * 0.045
 				var right := center_point + tangent * half_w + outward * 0.045
 				_add_osm_quad(windows,
