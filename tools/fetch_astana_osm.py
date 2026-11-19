@@ -13,6 +13,11 @@ OVERPASS = os.environ.get("OVERPASS_URL", "https://overpass-api.de/api/interpret
 QUERY = f"""[out:json][timeout:240];
 (
   way[building]({SOUTH},{WEST},{NORTH},{EAST});
+  way["building:part"]({SOUTH},{WEST},{NORTH},{EAST});
+  relation[building]({SOUTH},{WEST},{NORTH},{EAST});
+  relation[leisure~"park|garden|playground"]({SOUTH},{WEST},{NORTH},{EAST});
+  relation[landuse~"grass|forest|meadow|recreation_ground"]({SOUTH},{WEST},{NORTH},{EAST});
+  relation[natural~"water|wood"]({SOUTH},{WEST},{NORTH},{EAST});
   way[highway]({SOUTH},{WEST},{NORTH},{EAST});
   way[waterway]({SOUTH},{WEST},{NORTH},{EAST});
   way[leisure~"park|garden|playground"]({SOUTH},{WEST},{NORTH},{EAST});
@@ -113,8 +118,6 @@ def main():
     features = []
     for key in ("building", "road", "water", "area"):
         features.extend(buckets[key][:limits[key]])
-    if not features:
-        raise RuntimeError("Overpass returned no usable Astana features")
     if not features:
         raise RuntimeError("Overpass returned no usable Astana features")
     out = {"type": "FeatureCollection", "source": "© OpenStreetMap contributors",
