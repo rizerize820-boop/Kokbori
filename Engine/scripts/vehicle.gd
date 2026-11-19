@@ -2,7 +2,7 @@ extends CharacterBody3D
 
 const MAX_SPEED := 55.56 # 200 km/h
 const REVERSE_SPEED := 11.11 # 40 km/h
-const ACCELERATION := 12.0
+const ACCELERATION := 22.0
 const BRAKE_DECELERATION := 20.0
 const COAST_DECELERATION := 1.6
 const STEERING_RATE := 1.55
@@ -108,7 +108,7 @@ func set_driver(player: CharacterBody3D) -> void:
 			break
 
 func can_enter() -> bool:
-	return not driving and driver != null and global_position.distance_to(driver.global_position) < 6.5
+	return not driving and driver != null and global_position.distance_to(driver.global_position) < 10.0
 
 func toggle_player() -> void:
 	if not driving:
@@ -139,12 +139,14 @@ func toggle_player() -> void:
 		driver.set_physics_process(true)
 
 func set_controls(gas: float, turn: float) -> void:
-	# Accept the mobile pedal input directly and keep a clean neutral state.
-	throttle = clampf(gas, -1.0, 1.0)
-	steering = clampf(turn, -1.0, 1.0)
+	# Mobile pedals call this continuously while held; keep throttle independent
+	# from steering/joystick updates so releasing the stick cannot cancel GAS.
 	if not driving:
 		throttle = 0.0
 		steering = 0.0
+		return
+	throttle = clampf(gas, -1.0, 1.0)
+	steering = clampf(turn, -1.0, 1.0)
 
 func set_handbrake(pressed: bool) -> void:
 	handbrake = pressed
