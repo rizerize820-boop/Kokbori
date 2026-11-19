@@ -2,11 +2,6 @@ name: Publish KOKBORI Browser Playtest
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, unity-foundation]
-    paths:
-      - "Engine/**"
-      - ".github/workflows/deploy-kokbori-web.yml"
 
 permissions:
   contents: read
