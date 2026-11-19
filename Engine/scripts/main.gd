@@ -20,7 +20,7 @@ func _ready() -> void:
 	player.set_script(PlayerScript)
 	player.position = Vector3(-2.8, 0.15, 0.0)
 	add_child(player)
-	var camry := CharacterBody3D.new()
+	var camry := VehicleBody3D.new()
 	camry.set_script(VehicleScript)
 	camry.position = Vector3(0.0, 0.35, 0.0)
 	add_child(camry)
