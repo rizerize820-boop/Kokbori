@@ -33,6 +33,7 @@ func _build_materials() -> void:
 	materials["sidewalk"] = _material(Color("#aeb5b7"))
 	materials["line"] = _material(Color("#e7dfbd"))
 	materials["road_mark"] = _material(Color("#e8dfc4"))
+	materials["road_edge"] = _material(Color("#b9c0bd"))
 	materials["grass"] = _material(Color("#667b68"))
 	materials["building_a"] = _material(Color("#b8b9b4"))
 	materials["building_b"] = _material(Color("#9fa9b2"))
@@ -405,7 +406,7 @@ func _build_osm_city() -> void:
 
 	# Combine geometry into a small number of shared meshes. Creating one node
 	# per building/road way made the full-city scene too expensive for iPhones.
-	for key in ["walls", "roofs", "windows", "facade_trim", "roads", "road_marks", "paths", "water_lines", "green", "water_areas"]:
+	for key in ["walls", "roofs", "windows", "facade_trim", "roads", "road_marks", "road_edges", "paths", "water_lines", "green", "water_areas"]:
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		_osm_surfaces[key] = tool
@@ -451,6 +452,7 @@ func _build_osm_city() -> void:
 	_commit_osm_surface("facade_trim", materials["facade_trim"])
 	_commit_osm_surface("roads", materials["road"])
 	_commit_osm_surface("road_marks", materials["road_mark"])
+	_commit_osm_surface("road_edges", materials["road_edge"])
 	_commit_osm_surface("paths", materials["sidewalk"])
 	_commit_osm_surface("water_lines", materials["water"])
 	_commit_osm_surface("green", materials["grass"])
@@ -644,7 +646,15 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 		surface.add_vertex(p4)
 		# Dashed center markings on larger streets make intersections and lanes easier to read.
 		if kind == "road" and highway in ["motorway", "trunk", "primary", "secondary", "tertiary"]:
-			var mark_side := Vector2(-delta.y, delta.x).normalized() * 0.075
+			# Thin edge lines clarify the road width and make lanes easier to read.
+			var edge_normal := Vector2(-delta.y, delta.x).normalized()
+			var edge_offset := maxf(0.0, width * 0.5 - 0.22)
+			for edge_sign in [-1.0, 1.0]:
+				var edge_a := a + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
+				var edge_b := b + Vector3(edge_normal.x, 0.0, edge_normal.y) * edge_offset * edge_sign
+				var edge_side := Vector3(edge_normal.x, 0.0, edge_normal.y) * 0.065
+				_add_osm_quad(_osm_surfaces["road_edges"], edge_a + edge_side + Vector3.UP * 0.094, edge_a - edge_side + Vector3.UP * 0.094, edge_b - edge_side + Vector3.UP * 0.094, edge_b + edge_side + Vector3.UP * 0.094)
+			var mark_side := edge_normal * 0.075
 			var dash_start := 0.0
 			while dash_start < length:
 				var dash_end := minf(dash_start + 3.2, length)
