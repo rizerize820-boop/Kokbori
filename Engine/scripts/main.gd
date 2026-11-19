@@ -32,6 +32,7 @@ func _build_materials() -> void:
 	materials["road"] = _material(Color("#252b33"))
 	materials["sidewalk"] = _material(Color("#aeb5b7"))
 	materials["line"] = _material(Color("#e7dfbd"))
+	materials["road_mark"] = _material(Color("#e8dfc4"))
 	materials["grass"] = _material(Color("#667b68"))
 	materials["building_a"] = _material(Color("#b8b9b4"))
 	materials["building_b"] = _material(Color("#9fa9b2"))
@@ -404,7 +405,7 @@ func _build_osm_city() -> void:
 
 	# Combine geometry into a small number of shared meshes. Creating one node
 	# per building/road way made the full-city scene too expensive for iPhones.
-	for key in ["walls", "roofs", "windows", "facade_trim", "roads", "paths", "water_lines", "green", "water_areas"]:
+	for key in ["walls", "roofs", "windows", "facade_trim", "roads", "road_marks", "paths", "water_lines", "green", "water_areas"]:
 		var tool := SurfaceTool.new()
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		_osm_surfaces[key] = tool
@@ -449,6 +450,7 @@ func _build_osm_city() -> void:
 	_commit_osm_surface("windows", materials["window_glass"])
 	_commit_osm_surface("facade_trim", materials["facade_trim"])
 	_commit_osm_surface("roads", materials["road"])
+	_commit_osm_surface("road_marks", materials["road_mark"])
 	_commit_osm_surface("paths", materials["sidewalk"])
 	_commit_osm_surface("water_lines", materials["water"])
 	_commit_osm_surface("green", materials["grass"])
@@ -640,3 +642,17 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 		surface.add_vertex(p1)
 		surface.add_vertex(p3)
 		surface.add_vertex(p4)
+		# Dashed center markings on larger streets make intersections and lanes easier to read.
+		if kind == "road" and highway in ["motorway", "trunk", "primary", "secondary", "tertiary"]:
+			var mark_side := Vector2(-delta.y, delta.x).normalized() * 0.075
+			var dash_start := 0.0
+			while dash_start < length:
+				var dash_end := minf(dash_start + 3.2, length)
+				var mark_a := a.lerp(b, dash_start / length)
+				var mark_b := a.lerp(b, dash_end / length)
+				_add_osm_quad(_osm_surfaces["road_marks"],
+					Vector3(mark_a.x + mark_side.x, 0.092, mark_a.z + mark_side.y),
+					Vector3(mark_a.x - mark_side.x, 0.092, mark_a.z - mark_side.y),
+					Vector3(mark_b.x - mark_side.x, 0.092, mark_b.z - mark_side.y),
+					Vector3(mark_b.x + mark_side.x, 0.092, mark_b.z + mark_side.y))
+				dash_start += 7.0
