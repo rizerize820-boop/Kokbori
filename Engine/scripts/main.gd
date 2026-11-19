@@ -186,7 +186,9 @@ func _build_environment() -> void:
 	add_child(sun)
 	var ground_size := 16000.0 if FileAccess.file_exists("res://data/astana_osm.geojson") else 220.0
 	# A continuous, thick physics floor sits exactly beneath the map surfaces.
-	_solid_box(self, Vector3(0, -1.0, 0), Vector3(ground_size, 2.0, ground_size), materials["grass"])
+	var ground_body := _solid_box(self, Vector3(0, -1.0, 0), Vector3(ground_size, 2.0, ground_size), materials["grass"])
+	# Keep both player and vehicle ground collision layers active.
+	ground_body.collision_layer = 3
 
 func _build_street_grid() -> void:
 	# Secondary streets create a connected city grid around the central avenue.
