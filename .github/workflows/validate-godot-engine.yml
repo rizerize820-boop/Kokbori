@@ -5,14 +5,35 @@ on:
     branches: [main]
     paths:
       - "Engine/**"
+      - "tools/**"
+      - "tests/**"
       - ".github/workflows/validate-godot-engine.yml"
   pull_request:
     paths:
       - "Engine/**"
+      - "tools/**"
+      - "tests/**"
       - ".github/workflows/validate-godot-engine.yml"
   workflow_dispatch:
 
 jobs:
+  test-osm-import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check importer syntax
+        run: python -m py_compile tools/fetch_astana_osm.py
+
+      - name: Test OSM multipolygon handling
+        run: python -m unittest discover -s tests -v
+
   validate:
     runs-on: ubuntu-latest
     container:
