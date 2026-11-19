@@ -9,7 +9,7 @@ func _ready() -> void:
 	_build_materials()
 	_build_environment()
 	if FileAccess.file_exists("res://data/astana_osm.geojson"):
-		_build_osm_city()
+		await _build_osm_city()
 	else:
 		_build_street_grid()
 		_build_city()
@@ -230,6 +230,8 @@ const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
 const OSM_MAX_FEATURES := 52300
+const OSM_RENDER_RADIUS := 7500.0
+const OSM_FACADE_RADIUS := 1800.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
@@ -270,6 +272,16 @@ func _build_osm_city() -> void:
 		var properties: Dictionary = feature.get("properties", {})
 		var kind := str(properties.get("kind", ""))
 		var coords: Array = geometry.get("coordinates", [])
+		# Build only the playable central area; the source snapshot covers a huge metro region.
+		var sample_coord: Array = []
+		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
+			var sample_ring: Array = coords[0]
+			if not sample_ring.is_empty():
+				sample_coord = sample_ring[0]
+		elif geometry.get("type", "") == "LineString" and not coords.is_empty():
+			sample_coord = coords[0]
+		if sample_coord.size() >= 2 and _osm_point(sample_coord).length() > OSM_RENDER_RADIUS:
+			continue
 		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
 			var ring: Array = coords[0]
 			if ring.size() >= 4:
@@ -344,6 +356,12 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 
 	# Add repeated, scale-aware facade windows and floor bands to OSM buildings.
 	# Geometry is batched into shared meshes to keep draw calls low on iPhone.
+	var center := Vector2.ZERO
+	for point in points:
+		center += point
+	center /= float(points.size())
+	if center.length() > OSM_FACADE_RADIUS:
+		return
 	var windows: SurfaceTool = _osm_surfaces["windows"]
 	var trim: SurfaceTool = _osm_surfaces["facade_trim"]
 	var floors := maxi(1, int(floor(height / 3.2)))
