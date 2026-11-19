@@ -38,19 +38,25 @@ jobs:
 
       - name: Export mobile-friendly web build
         run: |
+          set -eux
           mkdir -p Engine/build
           godot --headless --path Engine --export-release "Web" build/index.html
+          test -s Engine/build/index.html
+          find Engine/build -maxdepth 2 -type f -print
 
       - name: Package web playtest
         run: |
-          test -f Engine/build/index.html
+          set -eux
+          rm -f "$RUNNER_TEMP/KOKBORI-Web-Playtest.zip"
           cd Engine/build
-          zip -qr ../../KOKBORI-Web-Playtest.zip .
+          zip -qr "$RUNNER_TEMP/KOKBORI-Web-Playtest.zip" .
+          unzip -l "$RUNNER_TEMP/KOKBORI-Web-Playtest.zip"
+          test "$(unzip -Z1 "$RUNNER_TEMP/KOKBORI-Web-Playtest.zip" | grep -c '^index.html$')" -eq 1
 
       - name: Upload web playtest
         uses: actions/upload-artifact@v4
         with:
           name: KOKBORI-Web-Playtest
-          path: KOKBORI-Web-Playtest.zip
+          path: ${{ runner.temp }}/KOKBORI-Web-Playtest.zip
           if-no-files-found: error
           retention-days: 14
