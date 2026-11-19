@@ -29,6 +29,7 @@ func _ready() -> void:
 
 	camera_pivot = Node3D.new()
 	camera_pivot.position = Vector3(0, 1.45, 0)
+	camera_pivot.rotation.x = deg_to_rad(-10.0)
 	add_child(camera_pivot)
 	var arm := SpringArm3D.new()
 	arm.spring_length = 5.5
@@ -36,7 +37,6 @@ func _ready() -> void:
 	camera_pivot.add_child(arm)
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 0, 0)
-	camera.rotation_degrees.x = -10
 	arm.add_child(camera)
 	camera.current = true
 
@@ -60,3 +60,12 @@ func _physics_process(delta: float) -> void:
 	if direction.length() > 0.08:
 		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), delta * 8.0)
 	move_and_slide()
+
+func apply_look(screen_delta: Vector2) -> void:
+	# Dragging on the right half of the touchscreen rotates the camera.
+	rotation.y -= screen_delta.x * 0.006
+	camera_pivot.rotation.x = clampf(
+		camera_pivot.rotation.x - screen_delta.y * 0.0045,
+		deg_to_rad(-65.0),
+		deg_to_rad(35.0)
+	)
