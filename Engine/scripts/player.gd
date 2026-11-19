@@ -5,6 +5,8 @@ extends CharacterBody3D
 @export var gravity: float = 18.0
 var camera_pivot: Node3D
 var camera: Camera3D
+var sprinting := false
+var jump_requested := false
 
 func _ready() -> void:
 	name = "Player"
@@ -50,13 +52,17 @@ func _physics_process(delta: float) -> void:
 	var forward := -camera_pivot.global_transform.basis.z
 	var right := camera_pivot.global_transform.basis.x
 	var direction := (right * input_dir.x + forward * -input_dir.y).normalized()
-	var target := direction * move_speed
+	var current_speed := move_speed * (1.55 if sprinting else 1.0)
+	var target := direction * current_speed
 	velocity.x = move_toward(velocity.x, target.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target.z, acceleration * delta)
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
 		velocity.y = 0.0
+		if jump_requested:
+			velocity.y = 6.2
+	jump_requested = false
 	if direction.length() > 0.08:
 		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), delta * 8.0)
 	move_and_slide()
@@ -69,3 +75,9 @@ func apply_look(screen_delta: Vector2) -> void:
 		deg_to_rad(-65.0),
 		deg_to_rad(35.0)
 	)
+
+func jump_now() -> void:
+	jump_requested = true
+
+func set_sprinting(enabled: bool) -> void:
+	sprinting = enabled
