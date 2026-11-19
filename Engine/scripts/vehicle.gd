@@ -2,10 +2,10 @@ extends CharacterBody3D
 
 const MAX_SPEED := 55.56 # 200 km/h
 const REVERSE_SPEED := 11.11 # 40 km/h
-const ACCELERATION := 8.5
+const ACCELERATION := 12.0
 const BRAKE_DECELERATION := 20.0
 const COAST_DECELERATION := 1.6
-const STEERING_RATE := 1.35
+const STEERING_RATE := 1.55
 const HANDBRAKE_DECELERATION := 8.0
 
 var throttle := 0.0
@@ -139,8 +139,12 @@ func toggle_player() -> void:
 		driver.set_physics_process(true)
 
 func set_controls(gas: float, turn: float) -> void:
+	# Accept the mobile pedal input directly and keep a clean neutral state.
 	throttle = clampf(gas, -1.0, 1.0)
 	steering = clampf(turn, -1.0, 1.0)
+	if not driving:
+		throttle = 0.0
+		steering = 0.0
 
 func set_handbrake(pressed: bool) -> void:
 	handbrake = pressed
@@ -181,11 +185,12 @@ func _physics_process(delta: float) -> void:
 	steering_smooth = move_toward(steering_smooth, steering, steer_response * delta)
 	var steer_factor := lerpf(1.0, 0.34, speed_ratio)
 	var handbrake_factor := 1.45 if handbrake else 1.0
-	if absf(speed) > 0.35:
+	if absf(speed) > 0.2:
 		rotate_y(-steering_smooth * STEERING_RATE * steer_factor * handbrake_factor * signf(speed) * delta)
 
-	velocity.x = -global_transform.basis.z.x * speed
-	velocity.z = -global_transform.basis.z.z * speed
+	var forward := -global_transform.basis.z
+	velocity.x = forward.x * speed
+	velocity.z = forward.z * speed
 	if not is_on_floor():
 		velocity.y -= 22.0 * delta
 	else:
