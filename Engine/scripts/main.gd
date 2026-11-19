@@ -95,7 +95,8 @@ func _build_environment() -> void:
 	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	add_child(sun)
-	_solid_box(self, Vector3(0, -0.3, 0), Vector3(220, 0.5, 220), materials["grass"])
+	var ground_size := 60000.0 if FileAccess.file_exists("res://data/astana_osm.geojson") else 220.0
+	_solid_box(self, Vector3(0, -0.3, 0), Vector3(ground_size, 0.5, ground_size), materials["grass"])
 
 func _build_street_grid() -> void:
 	# Secondary streets create a connected city grid around the central avenue.
