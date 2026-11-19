@@ -2,6 +2,8 @@ extends CanvasLayer
 
 var hud: Control
 var player: Node3D
+var vehicle: Node3D
+var vehicle_button := Vector2.ZERO
 var touches: Dictionary = {}
 var pad_center := Vector2.ZERO
 var pad_radius := 88.0
@@ -13,6 +15,9 @@ var sprinting := false
 
 func _ready() -> void:
 	player = get_parent().get_node_or_null("Player") as Node3D
+	vehicle = get_parent().get_node_or_null("Toyota_Camry_XV50") as Node3D
+	if vehicle == null:
+		vehicle = get_parent().get_node_or_null("Vehicle") as Node3D
 	screen_size = get_viewport().get_visible_rect().size
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -33,6 +38,7 @@ func _layout_controls() -> void:
 	pad_center = Vector2(maxf(pad_radius + 26.0, screen_size.x * 0.12), screen_size.y - maxf(pad_radius + 34.0, screen_size.y * 0.17))
 	jump_button = Vector2(screen_size.x - 104.0, screen_size.y - 112.0)
 	sprint_button = Vector2(screen_size.x - 235.0, screen_size.y - 86.0)
+	vehicle_button = Vector2(screen_size.x - 112.0, screen_size.y - 238.0)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
@@ -64,6 +70,11 @@ func _draw_hud() -> void:
 	# Action buttons.
 	_draw_action_button(jump_button, 48.0, "JUMP", Color("#4aa8e8"))
 	_draw_action_button(sprint_button, 37.0, "RUN", Color("#54b98a"))
+	if vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))):
+		var driving_now := bool(vehicle.get("driving"))
+		_draw_action_button(vehicle_button, 43.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
+		if driving_now:
+			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H", HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
 	hud.draw_string(font, Vector2(screen_size.x * 0.50 - 46.0, 34), "FREE CAMERA", HORIZONTAL_ALIGNMENT_CENTER, 140, 13, Color("#e4edf4", 0.78))
 
 func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
@@ -102,6 +113,10 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 	if pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
 		touches[index] = "move"
 		_update_stick(pos)
+	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 55.0:
+		touches[index] = "vehicle"
+		vehicle.call("toggle_player")
+		hud.queue_redraw()
 	elif pos.distance_to(jump_button) <= 58.0:
 		touches[index] = "jump"
 		if player != null:
@@ -132,6 +147,9 @@ func _update_stick(pos: Vector2) -> void:
 	hud.queue_redraw()
 
 func _apply_movement(v: Vector2) -> void:
+	if vehicle != null and bool(vehicle.get("driving")):
+		vehicle.call("set_controls", -v.y, v.x)
+		return
 	_set_action("move_left", v.x < -0.18)
 	_set_action("move_right", v.x > 0.18)
 	_set_action("move_forward", v.y < -0.18)
