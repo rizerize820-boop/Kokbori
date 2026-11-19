@@ -1,92 +1,135 @@
 extends CanvasLayer
 
-var pad: Control
+var hud: Control
 var player: Node3D
-var move_touch := -1
-var look_touch := -1
+var touches: Dictionary = {}
 var pad_center := Vector2.ZERO
 var pad_radius := 88.0
 var stick_vector := Vector2.ZERO
 var screen_size := Vector2.ZERO
+var jump_button := Vector2.ZERO
+var sprint_button := Vector2.ZERO
+var sprinting := false
 
 func _ready() -> void:
 	player = get_parent().get_node_or_null("Player") as Node3D
 	screen_size = get_viewport().get_visible_rect().size
+	hud = Control.new()
+	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.draw.connect(_draw_hud)
+	add_child(hud)
 	_layout_controls()
-	pad = Control.new()
-	pad.position = Vector2.ZERO
-	pad.size = screen_size
-	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pad.draw.connect(_draw_controls)
-	add_child(pad)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 func _on_viewport_resized() -> void:
 	screen_size = get_viewport().get_visible_rect().size
-	pad.size = screen_size
 	_layout_controls()
-	pad.queue_redraw()
+	hud.queue_redraw()
 
 func _layout_controls() -> void:
 	var short_side := minf(screen_size.x, screen_size.y)
-	pad_radius = clampf(short_side * 0.105, 64.0, 92.0)
-	pad_center = Vector2(maxf(pad_radius + 24.0, screen_size.x * 0.13), screen_size.y - maxf(pad_radius + 30.0, screen_size.y * 0.18))
+	pad_radius = clampf(short_side * 0.105, 68.0, 94.0)
+	pad_center = Vector2(maxf(pad_radius + 26.0, screen_size.x * 0.12), screen_size.y - maxf(pad_radius + 34.0, screen_size.y * 0.17))
+	jump_button = Vector2(screen_size.x - 104.0, screen_size.y - 112.0)
+	sprint_button = Vector2(screen_size.x - 235.0, screen_size.y - 86.0)
 
-func _draw_controls() -> void:
-	pad.draw_circle(pad_center, pad_radius + 13.0, Color(0.02, 0.04, 0.07, 0.22))
-	pad.draw_circle(pad_center, pad_radius, Color(0.06, 0.10, 0.16, 0.50))
-	pad.draw_arc(pad_center, pad_radius, 0.0, TAU, 72, Color(0.78, 0.86, 0.94, 0.82), 3.0, true)
-	var knob := pad_center + stick_vector * pad_radius * 0.72
-	pad.draw_circle(knob, 37.0, Color(0.76, 0.84, 0.92, 0.88))
-	pad.draw_arc(knob, 37.0, 0.0, TAU, 48, Color(1, 1, 1, 0.9), 2.0, true)
-	pad.draw_string(ThemeDB.fallback_font, Vector2(28, 38), "KOKBORI RP", HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(1, 1, 1, 0.88))
-	pad.draw_string(ThemeDB.fallback_font, Vector2(34, screen_size.y - 28), "MOVE", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.65))
-	pad.draw_string(ThemeDB.fallback_font, Vector2(screen_size.x - 170, screen_size.y - 28), "LOOK AROUND", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, 0.65))
+func _draw_hud() -> void:
+	var font := ThemeDB.fallback_font
+	# Top identity/status panel.
+	hud.draw_rect(Rect2(22, 18, 300, 66), Color(0.025, 0.055, 0.09, 0.78), true, 12.0)
+	hud.draw_string(font, Vector2(42, 46), "KOKBORI  /  ASTANA", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("#f3f7fb"))
+	hud.draw_string(font, Vector2(42, 70), "CITIZEN  •  LEVEL 1", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#a9c4d8"))
+	# Health and stamina indicators.
+	hud.draw_rect(Rect2(344, 28, 170, 12), Color(0.02, 0.04, 0.07, 0.72), true, 6.0)
+	hud.draw_rect(Rect2(344, 28, 148, 12), Color("#55c98b"), true, 6.0)
+	hud.draw_string(font, Vector2(344, 62), "HEALTH  100", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#eaf2f7"))
+	hud.draw_rect(Rect2(344, 68, 170, 7), Color(0.02, 0.04, 0.07, 0.72), true, 4.0)
+	hud.draw_rect(Rect2(344, 68, 130, 7), Color("#5bb8ed"), true, 4.0)
+	# Compact minimap.
+	var map_center := Vector2(screen_size.x - 104.0, 104.0)
+	hud.draw_circle(map_center, 76.0, Color(0.015, 0.035, 0.055, 0.78))
+	hud.draw_arc(map_center, 72.0, 0.0, TAU, 64, Color("#a9c5d8", 0.9), 3.0, true)
+	hud.draw_line(map_center + Vector2(-48, 0), map_center + Vector2(48, 0), Color("#66859a", 0.8), 5.0)
+	hud.draw_line(map_center + Vector2(0, -48), map_center + Vector2(0, 48), Color("#66859a", 0.8), 5.0)
+	hud.draw_circle(map_center, 7.0, Color("#ffd36b"))
+	hud.draw_string(font, map_center + Vector2(-5, -83), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#f3f7fb"))
+	# Movement joystick.
+	hud.draw_circle(pad_center, pad_radius + 12.0, Color(0.015, 0.035, 0.06, 0.24))
+	hud.draw_circle(pad_center, pad_radius, Color(0.035, 0.075, 0.12, 0.62))
+	hud.draw_arc(pad_center, pad_radius, 0.0, TAU, 72, Color("#c4d8e8", 0.9), 3.0, true)
+	var knob := pad_center + stick_vector * pad_radius * 0.70
+	hud.draw_circle(knob, 34.0, Color("#b8cbdc", 0.94))
+	hud.draw_arc(knob, 34.0, 0.0, TAU, 48, Color("#f5f9fc"), 2.0, true)
+	# Action buttons.
+	_draw_action_button(jump_button, 48.0, "JUMP", Color("#4aa8e8"))
+	_draw_action_button(sprint_button, 37.0, "RUN", Color("#54b98a"))
+	hud.draw_string(font, Vector2(screen_size.x * 0.50 - 46.0, 34), "FREE CAMERA", HORIZONTAL_ALIGNMENT_CENTER, 140, 13, Color("#e4edf4", 0.78))
+
+func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
+	hud.draw_circle(center, radius + 7.0, Color(0.015, 0.035, 0.06, 0.35))
+	hud.draw_circle(center, radius, Color(tint, 0.72))
+	hud.draw_arc(center, radius, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
+	hud.draw_string(ThemeDB.fallback_font, center + Vector2(-radius * 0.55, 5.0), label, HORIZONTAL_ALIGNMENT_CENTER, radius * 1.1, 14, Color("#ffffff"))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			if event.position.x < screen_size.x * 0.40 and move_touch == -1:
-				move_touch = event.index
-				_update_stick(event.position)
-			elif event.position.x > screen_size.x * 0.42 and look_touch == -1:
-				look_touch = event.index
+			_begin_touch(event.index, event.position)
 		else:
-			if event.index == move_touch:
-				move_touch = -1
-				stick_vector = Vector2.ZERO
-				_apply_movement(Vector2.ZERO)
-				pad.queue_redraw()
-			if event.index == look_touch:
-				look_touch = -1
+			_end_touch(event.index)
 	elif event is InputEventScreenDrag:
-		if event.index == move_touch:
+		var role: String = str(touches.get(event.index, ""))
+		if role == "move":
 			_update_stick(event.position)
-		elif event.index == look_touch and player != null:
+		elif role == "look" and player != null:
 			player.call("apply_look", event.relative)
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	elif OS.has_feature("editor") and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			if event.position.x < screen_size.x * 0.40:
-				move_touch = 999
-				_update_stick(event.position)
-			else:
-				look_touch = 999
+			_begin_touch(999, event.position)
 		else:
-			if move_touch == 999:
-				move_touch = -1
-				stick_vector = Vector2.ZERO
-				_apply_movement(Vector2.ZERO)
-				pad.queue_redraw()
-			if look_touch == 999:
-				look_touch = -1
-	elif event is InputEventMouseMotion:
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and look_touch == 999 and player != null:
+			_end_touch(999)
+	elif OS.has_feature("editor") and event is InputEventMouseMotion and touches.has(999):
+		var role: String = str(touches[999])
+		if role == "move":
+			_update_stick(event.position)
+		elif role == "look" and player != null:
 			player.call("apply_look", event.relative)
 
-func _update_stick(screen_pos: Vector2) -> void:
-	stick_vector = ((screen_pos - pad_center) / pad_radius).limit_length(1.0)
+func _begin_touch(index: int, pos: Vector2) -> void:
+	if touches.has(index):
+		return
+	if pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
+		touches[index] = "move"
+		_update_stick(pos)
+	elif pos.distance_to(jump_button) <= 58.0:
+		touches[index] = "jump"
+		if player != null:
+			player.call("jump_now")
+	elif pos.distance_to(sprint_button) <= 48.0:
+		touches[index] = "run"
+		sprinting = true
+		if player != null:
+			player.call("set_sprinting", true)
+	elif pos.x > screen_size.x * 0.52 and pos.y < screen_size.y * 0.78 and not touches.values().has("look"):
+		touches[index] = "look"
+
+func _end_touch(index: int) -> void:
+	var role: String = str(touches.get(index, ""))
+	touches.erase(index)
+	if role == "move":
+		stick_vector = Vector2.ZERO
+		_apply_movement(Vector2.ZERO)
+		hud.queue_redraw()
+	elif role == "run":
+		sprinting = false
+		if player != null:
+			player.call("set_sprinting", false)
+
+func _update_stick(pos: Vector2) -> void:
+	stick_vector = ((pos - pad_center) / pad_radius).limit_length(1.0)
 	_apply_movement(stick_vector)
-	pad.queue_redraw()
+	hud.queue_redraw()
 
 func _apply_movement(v: Vector2) -> void:
 	_set_action("move_left", v.x < -0.18)
