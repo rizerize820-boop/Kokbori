@@ -291,6 +291,7 @@ func _build_osm_city() -> void:
 
 func _commit_osm_surface(key: String, mat: Material) -> void:
 	var tool: SurfaceTool = _osm_surfaces[key]
+	tool.generate_normals()
 	var mesh := tool.commit()
 	if mesh == null or mesh.get_surface_count() == 0:
 		return
