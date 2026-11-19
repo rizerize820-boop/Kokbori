@@ -76,7 +76,7 @@ func _fit_model_to_ground(model: Node3D) -> void:
 	if found_mesh:
 		# Vehicle root is spawned 0.15 m above the road; keep the mesh bottom
 		# at world Y=0.08 regardless of the GLB's original pivot and scale.
-		model.position.y = 0.04 - bounds.position.y
+		model.position.y = 0.11 - bounds.position.y
 	else:
 		push_warning("Imported vehicle model has no MeshInstance3D nodes; ground fitting skipped.")
 
