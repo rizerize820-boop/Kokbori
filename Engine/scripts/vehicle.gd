@@ -33,7 +33,7 @@ func _build_car() -> void:
 	if model_resource is PackedScene:
 		var model := (model_resource as PackedScene).instantiate()
 		model.name = "Camry_55_Model"
-		model.position = Vector3.ZERO
+		model.position = Vector3(0.0, 0.45, 0.0)
 		add_child(model)
 	else:
 		push_warning("Could not load res://assets/vehicles/admiral.glb; using fallback car body.")
