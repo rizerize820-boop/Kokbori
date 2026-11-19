@@ -1,14 +1,17 @@
 extends CharacterBody3D
 
-const MAX_SPEED := 72.22 # 260 km/h
-const REVERSE_SPEED := 8.0
-const ACCELERATION := 5.56 # 0-100 km/h in approximately 5 seconds
-const BRAKE_DECELERATION := 15.0
-const COAST_DECELERATION := 3.8
-const STEERING_RATE := 1.65
+const MAX_SPEED := 55.56 # 200 km/h
+const REVERSE_SPEED := 11.11 # 40 km/h
+const ACCELERATION := 8.5
+const BRAKE_DECELERATION := 20.0
+const COAST_DECELERATION := 1.6
+const STEERING_RATE := 1.35
+const HANDBRAKE_DECELERATION := 8.0
 
 var throttle := 0.0
 var steering := 0.0
+var steering_smooth := 0.0
+var handbrake := false
 var speed := 0.0
 var driving := false
 var driver: CharacterBody3D
@@ -117,6 +120,8 @@ func toggle_player() -> void:
 		driving = false
 		throttle = 0.0
 		steering = 0.0
+		steering_smooth = 0.0
+		handbrake = false
 		speed = 0.0
 		driver.reparent(get_parent(), true)
 		driver.global_position = global_position + global_transform.basis.x * 2.2 + Vector3.UP * 0.15
@@ -131,6 +136,9 @@ func set_controls(gas: float, turn: float) -> void:
 	throttle = clampf(gas, -1.0, 1.0)
 	steering = clampf(turn, -1.0, 1.0)
 
+func set_handbrake(pressed: bool) -> void:
+	handbrake = pressed
+
 func get_speed_kmh() -> int:
 	return int(round(absf(speed) * 3.6))
 
@@ -142,21 +150,30 @@ func _physics_process(delta: float) -> void:
 		speed = 0.0
 	if not driving:
 		return
-	var limit := MAX_SPEED if throttle >= 0.0 else REVERSE_SPEED
-	if throttle > 0.0:
-		speed = move_toward(speed, limit, ACCELERATION * delta)
-	elif throttle < 0.0:
+	# SA-MP-style arcade handling: progressive throttle, distinct braking/reverse,
+	# speed-sensitive steering and a handbrake that tightens the turn.
+	if throttle > 0.05:
+		if speed < -0.5:
+			speed = move_toward(speed, 0.0, BRAKE_DECELERATION * delta)
+		else:
+			speed = move_toward(speed, MAX_SPEED, ACCELERATION * delta)
+	elif throttle < -0.05:
 		if speed > 0.5:
 			speed = move_toward(speed, 0.0, BRAKE_DECELERATION * delta)
 		else:
-			speed = move_toward(speed, -limit, ACCELERATION * delta)
+			speed = move_toward(speed, -REVERSE_SPEED, ACCELERATION * 0.72 * delta)
 	else:
-		speed = move_toward(speed, 0.0, COAST_DECELERATION * delta)
+		var drag := HANDBRAKE_DECELERATION if handbrake else COAST_DECELERATION
+		speed = move_toward(speed, 0.0, drag * delta)
 
 	var speed_ratio := clampf(absf(speed) / MAX_SPEED, 0.0, 1.0)
-	var steer_factor := lerpf(0.95, 0.30, speed_ratio)
-	if absf(speed) > 0.15:
-		rotate_y(-steering * STEERING_RATE * steer_factor * signf(speed) * delta)
+	var steer_response := 5.5 if not handbrake else 8.0
+	steering_smooth = move_toward(steering_smooth, steering, steer_response * delta)
+	var steer_factor := lerpf(1.0, 0.34, speed_ratio)
+	var handbrake_factor := 1.45 if handbrake else 1.0
+	if absf(speed) > 0.35:
+		rotate_y(-steering_smooth * STEERING_RATE * steer_factor * handbrake_factor * signf(speed) * delta)
+
 	velocity = -global_transform.basis.z * speed
 	velocity.y = -1.0
 	move_and_slide()
