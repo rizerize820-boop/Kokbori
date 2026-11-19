@@ -30,6 +30,7 @@ func _ready() -> void:
 	add_child(body_mesh)
 
 	camera_pivot = Node3D.new()
+	camera_pivot.name = "CameraPivot"
 	camera_pivot.position = Vector3(0, 1.45, 0)
 	camera_pivot.rotation.x = deg_to_rad(-10.0)
 	add_child(camera_pivot)
