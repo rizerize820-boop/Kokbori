@@ -8,8 +8,11 @@ var materials: Dictionary = {}
 func _ready() -> void:
 	_build_materials()
 	_build_environment()
-	_build_street_grid()
-	_build_city()
+	if FileAccess.file_exists("res://data/astana_osm.geojson"):
+		_build_osm_city()
+	else:
+		_build_street_grid()
+		_build_city()
 	var player := CharacterBody3D.new()
 	player.set_script(PlayerScript)
 	player.position = Vector3(0, 0.15, 12)
@@ -216,3 +219,117 @@ func _add_lamp(pos: Vector3) -> void:
 	add_child(lamp)
 	_visual_box(lamp, Vector3(0, 2.4, 0), Vector3(0.12, 4.8, 0.12), materials["trim"])
 	_visual_box(lamp, Vector3(0, 4.75, -0.45), Vector3(0.85, 0.12, 0.18), materials["gold"])
+
+# OpenStreetMap coordinates are projected locally around central Astana.
+const OSM_ORIGIN_LON := 71.50158
+const OSM_ORIGIN_LAT := 51.10436
+const OSM_LAT_METERS := 111320.0
+const OSM_MAX_FEATURES := 18000
+
+func _osm_point(coord: Array) -> Vector3:
+	var lat_scale := cos(deg_to_rad(OSM_ORIGIN_LAT))
+	var x := (float(coord[0]) - OSM_ORIGIN_LON) * OSM_LAT_METERS * lat_scale
+	var z := -(float(coord[1]) - OSM_ORIGIN_LAT) * OSM_LAT_METERS
+	return Vector3(x, 0.0, z)
+
+func _build_osm_city() -> void:
+	var file := FileAccess.open("res://data/astana_osm.geojson", FileAccess.READ)
+	if file == null:
+		_build_street_grid()
+		_build_city()
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("features"):
+		push_warning("Astana OSM snapshot is invalid; using prototype district.")
+		_build_street_grid()
+		_build_city()
+		return
+	var features: Array = parsed["features"]
+	var processed := 0
+	for feature in features:
+		if processed >= OSM_MAX_FEATURES:
+			break
+		if typeof(feature) != TYPE_DICTIONARY:
+			continue
+		var geometry: Dictionary = feature.get("geometry", {})
+		var properties: Dictionary = feature.get("properties", {})
+		var kind := str(properties.get("kind", ""))
+		var coords: Array = geometry.get("coordinates", [])
+		if kind == "building" and geometry.get("type", "") == "Polygon" and not coords.is_empty():
+			var ring: Array = coords[0]
+			if ring.size() >= 4:
+				_add_osm_building(ring, properties)
+				processed += 1
+		elif geometry.get("type", "") == "LineString" and coords.size() >= 2:
+			_add_osm_line(coords, kind, str(properties.get("highway", "")))
+			processed += 1
+	print("Loaded ", processed, " Astana OpenStreetMap features. © OpenStreetMap contributors")
+
+func _add_osm_building(ring: Array, properties: Dictionary) -> void:
+	var points := PackedVector2Array()
+	for coord in ring:
+		var p := _osm_point(coord)
+		points.append(Vector2(p.x, p.z))
+	if points.size() > 3 and points[0].is_equal_approx(points[points.size() - 1]):
+		points.remove_at(points.size() - 1)
+	if points.size() < 3:
+		return
+	var height := 10.0
+	var tagged_height := str(properties.get("height", "")).replace(" m", "").replace("m", "")
+	if tagged_height.is_valid_float():
+		height = clampf(float(tagged_height), 3.0, 180.0)
+	else:
+		var levels := str(properties.get("levels", ""))
+		if levels.is_valid_float():
+			height = clampf(float(levels) * 3.1, 3.0, 180.0)
+	var triangles := Geometry2D.triangulate_polygon(points)
+	if triangles.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(0, triangles.size(), 3):
+		for j in range(3):
+			var p := points[triangles[i + j]]
+			st.add_vertex(Vector3(p.x, height, p.y))
+	for i in range(points.size()):
+		var a := points[i]
+		var b := points[(i + 1) % points.size()]
+		st.add_vertex(Vector3(a.x, 0, a.y))
+		st.add_vertex(Vector3(b.x, 0, b.y))
+		st.add_vertex(Vector3(b.x, height, b.y))
+		st.add_vertex(Vector3(a.x, 0, a.y))
+		st.add_vertex(Vector3(b.x, height, b.y))
+		st.add_vertex(Vector3(a.x, height, a.y))
+	st.generate_normals()
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.mesh = st.commit()
+	mesh_instance.material_override = materials["building_a"]
+	add_child(mesh_instance)
+
+func _add_osm_line(coords: Array, kind: String, highway: String) -> void:
+	var width := 0.8
+	var mat: Material = materials["sidewalk"]
+	if kind == "road":
+		width = 5.0 if highway in ["motorway", "trunk", "primary", "secondary"] else 2.8
+		mat = materials["road"]
+	elif kind == "water":
+		width = 3.0
+		mat = materials["water"]
+	else:
+		width = 1.5
+		mat = materials["grass"]
+	for i in range(coords.size() - 1):
+		var a := _osm_point(coords[i])
+		var b := _osm_point(coords[i + 1])
+		var delta := b - a
+		var length := Vector2(delta.x, delta.z).length()
+		if length < 0.5 or length > 250.0:
+			continue
+		var segment := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(width, 0.12, length)
+		segment.mesh = box
+		segment.material_override = mat
+		segment.position = (a + b) * 0.5
+		segment.rotation.y = atan2(delta.x, delta.z)
+		add_child(segment)
