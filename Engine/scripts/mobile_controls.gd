@@ -15,7 +15,7 @@ var sprinting := false
 
 func _ready() -> void:
 	player = get_parent().get_node_or_null("Player") as Node3D
-	vehicle = get_parent().get_node_or_null("Toyota_Camry_XV50") as Node3D
+	vehicle = get_parent().get_node_or_null("Toyota_Camry_55") as Node3D
 	if vehicle == null:
 		vehicle = get_parent().get_node_or_null("Vehicle") as Node3D
 	screen_size = get_viewport().get_visible_rect().size
