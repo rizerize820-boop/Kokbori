@@ -6,10 +6,12 @@ using UnityEngine;
 /// </summary>
 public sealed class KokboriVehicleController : MonoBehaviour
 {
-    [SerializeField] private float acceleration = 11f;
-    [SerializeField] private float reverseSpeed = 7f;
-    [SerializeField] private float maxSpeed = 22f;
-    [SerializeField] private float steeringSpeed = 95f;
+    // KOKBORI Toyota Camry XV50 arcade setup. World units are metres/seconds.
+    // 100 km/h in 5 seconds ~= 5.56 m/s^2; 260 km/h ~= 72.22 m/s.
+    [SerializeField] private float acceleration = 5.56f;
+    [SerializeField] private float reverseSpeed = 8f;
+    [SerializeField] private float maxSpeed = 72.22f;
+    [SerializeField] private float steeringSpeed = 105f;
 
     private Transform player;
     private CharacterController character;
@@ -24,7 +26,7 @@ public sealed class KokboriVehicleController : MonoBehaviour
 
     public static KokboriVehicleController Create(Vector3 position)
     {
-        var root = new GameObject("KOKBORI Sedan");
+        var root = new GameObject("Toyota Camry XV50");
         root.transform.position = position;
         var vehicle = root.AddComponent<KokboriVehicleController>();
         vehicle.BuildCar();
@@ -47,9 +49,9 @@ public sealed class KokboriVehicleController : MonoBehaviour
             4,5,6, 5,7,6, 2,6,3, 3,6,7, 4,8,5, 5,8,9,
             6,5,7, 7,5,9, 6,8,7, 7,8,9
         };
-        MakeMeshPart("Sculpted Sedan Body", bodyVertices, bodyTriangles, new Color(0.06f,0.22f,0.48f));
+        MakeMeshPart("Sculpted Sedan Body", bodyVertices, bodyTriangles, new Color(0.10f,0.12f,0.15f));
 
-        MakePart("Roof", new Vector3(0,1.55f,-0.12f), new Vector3(1.48f,0.16f,1.48f), new Color(0.055f,0.18f,0.36f));
+        MakePart("Roof", new Vector3(0,1.55f,-0.12f), new Vector3(1.48f,0.16f,1.48f), new Color(0.075f,0.085f,0.10f));
         MakePart("Front Windshield", new Vector3(0,1.24f,0.95f), new Vector3(1.42f,0.62f,0.07f), new Color(0.18f,0.38f,0.48f));
         MakePart("Rear Windshield", new Vector3(0,1.24f,-1.08f), new Vector3(1.42f,0.58f,0.07f), new Color(0.18f,0.38f,0.48f));
         MakePart("Left Side Glass", new Vector3(-0.755f,1.28f,-0.12f), new Vector3(0.055f,0.52f,1.32f), new Color(0.16f,0.34f,0.43f));
@@ -66,7 +68,7 @@ public sealed class KokboriVehicleController : MonoBehaviour
         for (int axle = -1; axle <= 1; axle += 2)
         {
             var wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            wheel.name = "Rubber Tyre";
+            wheel.name = axle > 0 ? "Front Driven Wheel" : "Rear Wheel";
             wheel.transform.SetParent(transform, false);
             wheel.transform.localPosition = new Vector3(side * 0.98f, 0.43f, axle * 1.32f);
             wheel.transform.localRotation = Quaternion.Euler(0, 0, 90);
@@ -160,7 +162,9 @@ public sealed class KokboriVehicleController : MonoBehaviour
         speed += throttle * acceleration * deltaTime;
         speed = Mathf.Clamp(speed, -targetLimit * 0.45f, targetLimit);
         if (Mathf.Abs(throttle) < 0.01f) speed = Mathf.MoveTowards(speed, 0, 3.5f * deltaTime);
-        float steerFactor = Mathf.Clamp01(Mathf.Abs(speed) / 3f);
+        // Responsive low-speed steering, progressively calmer at high speed.
+        float speedRatio = Mathf.Clamp01(Mathf.Abs(speed) / maxSpeed);
+        float steerFactor = Mathf.Lerp(0.9f, 0.34f, speedRatio);
         transform.Rotate(Vector3.up, steering * steeringSpeed * steerFactor * Mathf.Sign(speed == 0 ? 1 : speed) * deltaTime);
         transform.position += transform.forward * speed * deltaTime;
         if (followCamera != null)
