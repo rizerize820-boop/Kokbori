@@ -137,6 +137,11 @@ func get_speed_kmh() -> int:
 	return int(round(absf(speed) * 3.6))
 
 func _physics_process(delta: float) -> void:
+	# Keep the car recoverable if it ever slips outside the ground collider.
+	if global_position.y < -5.0:
+		global_position.y = 1.0
+		velocity = Vector3.ZERO
+		speed = 0.0
 	if not driving:
 		return
 	var limit := MAX_SPEED if throttle >= 0.0 else REVERSE_SPEED
