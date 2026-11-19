@@ -7,23 +7,15 @@ const VehicleScript = preload("res://scripts/vehicle.gd")
 var materials: Dictionary = {}
 var loading_layer: CanvasLayer
 
+const OSM_MAX_FILE_BYTES := 2000000
+
 func _ready() -> void:
 	_build_materials()
 	_build_environment()
-	_show_loading_screen("ЗАГРУЗКА ГОРОДА АСТАНЫ...")
-	await get_tree().process_frame
-	if FileAccess.file_exists("res://data/astana_osm.geojson"):
-		await _build_osm_city()
-		if int(_osm_surfaces.get("processed_count", 0)) < 20:
-			push_warning("OSM map has too few usable features; loading fallback city.")
-			_build_street_grid()
-			_build_city()
-		else:
-			_build_baiterek()
-	else:
-		_build_street_grid()
-		_build_city()
-	_hide_loading_screen()
+
+	# Create the player and active camera before generating the city. Previously
+	# the scene had no active camera while the large GeoJSON file was parsed,
+	# which left the client showing only the blue clear-color screen.
 	var player := CharacterBody3D.new()
 	player.set_script(PlayerScript)
 	player.position = Vector3(-1.0, 0.15, 38.0)
@@ -36,6 +28,35 @@ func _ready() -> void:
 	var controls := CanvasLayer.new()
 	controls.set_script(ControlsScript)
 	add_child(controls)
+
+	_show_loading_screen("ЗАГРУЗКА ГОРОДА АСТАНЫ...")
+	await get_tree().process_frame
+
+	var use_osm := false
+	var map_path := "res://data/astana_osm.geojson"
+	if FileAccess.file_exists(map_path):
+		var map_file := FileAccess.open(map_path, FileAccess.READ)
+		if map_file != null:
+			var map_size := map_file.get_length()
+			map_file.close()
+			# Parsing a very large GeoJSON synchronously can freeze mobile/Web
+			# clients before the first frame. Use the lightweight city instead.
+			use_osm = map_size > 0 and map_size <= OSM_MAX_FILE_BYTES
+			if not use_osm:
+				push_warning("Astana GeoJSON is too large for safe startup; using optimized city.")
+	if use_osm:
+		await _build_osm_city()
+		if int(_osm_surfaces.get("processed_count", 0)) < 20:
+			push_warning("OSM map has too few usable features; loading fallback city.")
+			_build_street_grid()
+			_build_city()
+		else:
+			_build_baiterek()
+	else:
+		_build_street_grid()
+		_build_city()
+
+	_hide_loading_screen()
 
 func _show_loading_screen(message: String) -> void:
 	loading_layer = CanvasLayer.new()
