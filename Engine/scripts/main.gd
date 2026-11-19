@@ -61,7 +61,7 @@ func _ready() -> void:
 		var station_forecourt := _osm_point([71.53175, 51.10970])
 		camry.global_position = Vector3(station_forecourt.x + 3.5, 1.15, station_forecourt.z)
 		camry.global_rotation = Vector3.ZERO
-		player.global_position = Vector3(station_forecourt.x - 2.8, 1.0, station_forecourt.z + 1.0)
+		player.global_position = Vector3(station_forecourt.x + 0.3, 1.0, station_forecourt.z + 3.0)
 	else:
 		camry.global_position = Vector3(0.0, 1.15, 0.0)
 		player.global_position = Vector3(-2.8, 1.0, 0.0)
