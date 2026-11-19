@@ -35,8 +35,9 @@ func _build_car() -> void:
 	floor_stop_on_slope = true
 	safe_margin = 0.04
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
-	collision_layer = 1
-	collision_mask = 1
+	collision_layer = 2
+	# Ignore OSM building AABBs; collide with the ground on layer 2 only.
+	collision_mask = 2
 	add_child(collision)
 
 	var model_resource := load("res://assets/vehicles/admiral.glb")
