@@ -24,7 +24,7 @@ func _ready() -> void:
 func _on_viewport_resized() -> void:
 	screen_size = get_viewport().get_visible_rect().size
 	pad.size = screen_size
-	pad_center = Vector2(142.0, screen_size.y - 150.0)
+	_layout_controls()
 	pad.queue_redraw()
 
 func _layout_controls() -> void:
