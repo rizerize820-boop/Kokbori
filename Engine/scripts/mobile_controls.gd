@@ -4,6 +4,10 @@ var hud: Control
 var player: Node3D
 var vehicle: Node3D
 var vehicle_button := Vector2.ZERO
+var gas_button := Vector2.ZERO
+var brake_button := Vector2.ZERO
+var gas_pressed := false
+var brake_pressed := false
 var touches: Dictionary = {}
 var pad_center := Vector2.ZERO
 var pad_radius := 88.0
@@ -39,6 +43,8 @@ func _layout_controls() -> void:
 	jump_button = Vector2(screen_size.x - 104.0, screen_size.y - 112.0)
 	sprint_button = Vector2(screen_size.x - 235.0, screen_size.y - 86.0)
 	vehicle_button = Vector2(screen_size.x - 112.0, screen_size.y - 238.0)
+	gas_button = Vector2(screen_size.x - 105.0, screen_size.y - 115.0)
+	brake_button = Vector2(screen_size.x - 220.0, screen_size.y - 115.0)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
@@ -68,10 +74,14 @@ func _draw_hud() -> void:
 	hud.draw_circle(knob, 34.0, Color("#b8cbdc", 0.94))
 	hud.draw_arc(knob, 34.0, 0.0, TAU, 48, Color("#f5f9fc"), 2.0, true)
 	# Action buttons.
-	_draw_action_button(jump_button, 48.0, "JUMP", Color("#4aa8e8"))
-	_draw_action_button(sprint_button, 37.0, "RUN", Color("#54b98a"))
-	if vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))):
-		var driving_now := bool(vehicle.get("driving"))
+	var driving_now := vehicle != null and bool(vehicle.get("driving"))
+	if driving_now:
+		_draw_action_button(gas_button, 49.0, "GAS", Color("#35b96f"))
+		_draw_action_button(brake_button, 43.0, "BRAKE", Color("#d45b55"))
+	else:
+		_draw_action_button(jump_button, 48.0, "JUMP", Color("#4aa8e8"))
+		_draw_action_button(sprint_button, 37.0, "RUN", Color("#54b98a"))
+	if vehicle != null and (driving_now or bool(vehicle.call("can_enter"))):
 		_draw_action_button(vehicle_button, 43.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
 		if driving_now:
 			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H", HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
@@ -113,9 +123,20 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 	if pos.distance_to(pad_center) <= pad_radius * 1.65 and not touches.values().has("move"):
 		touches[index] = "move"
 		_update_stick(pos)
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 58.0:
+		touches[index] = "gas"
+		gas_pressed = true
+		_update_vehicle_controls()
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 55.0:
+		touches[index] = "brake"
+		brake_pressed = true
+		_update_vehicle_controls()
 	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 55.0:
 		touches[index] = "vehicle"
 		vehicle.call("toggle_player")
+		gas_pressed = false
+		brake_pressed = false
+		_update_vehicle_controls()
 		hud.queue_redraw()
 	elif pos.distance_to(jump_button) <= 58.0:
 		touches[index] = "jump"
@@ -140,6 +161,12 @@ func _end_touch(index: int) -> void:
 		sprinting = false
 		if player != null:
 			player.call("set_sprinting", false)
+	elif role == "gas":
+		gas_pressed = false
+		_update_vehicle_controls()
+	elif role == "brake":
+		brake_pressed = false
+		_update_vehicle_controls()
 
 func _update_stick(pos: Vector2) -> void:
 	stick_vector = ((pos - pad_center) / pad_radius).limit_length(1.0)
@@ -148,12 +175,16 @@ func _update_stick(pos: Vector2) -> void:
 
 func _apply_movement(v: Vector2) -> void:
 	if vehicle != null and bool(vehicle.get("driving")):
-		vehicle.call("set_controls", -v.y, v.x)
+		vehicle.call("set_controls", (1.0 if gas_pressed else (-1.0 if brake_pressed else 0.0)), v.x)
 		return
 	_set_action("move_left", v.x < -0.18)
 	_set_action("move_right", v.x > 0.18)
 	_set_action("move_forward", v.y < -0.18)
 	_set_action("move_back", v.y > 0.18)
+
+func _update_vehicle_controls() -> void:
+	if vehicle != null and bool(vehicle.get("driving")):
+		vehicle.call("set_controls", 1.0 if gas_pressed else (-1.0 if brake_pressed else 0.0), stick_vector.x)
 
 func _set_action(action_name: String, pressed: bool) -> void:
 	if pressed:
