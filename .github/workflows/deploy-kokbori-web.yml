@@ -11,10 +11,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: kokbori-pages
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,7 +41,7 @@ jobs:
       - name: Upload downloadable browser build
         uses: actions/upload-artifact@v4
         with:
-          name: KOKBORI-Web-Playtest
+          name: KOKBORI-Web-Site-Files
           path: Engine/site
           if-no-files-found: error
           retention-days: 14
