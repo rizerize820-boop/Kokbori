@@ -12,7 +12,7 @@ var screen_size := Vector2.ZERO
 func _ready() -> void:
 	player = get_parent().get_node_or_null("Player") as Node3D
 	screen_size = get_viewport().get_visible_rect().size
-	pad_center = Vector2(142.0, screen_size.y - 150.0)
+	_layout_controls()
 	pad = Control.new()
 	pad.position = Vector2.ZERO
 	pad.size = screen_size
@@ -26,6 +26,11 @@ func _on_viewport_resized() -> void:
 	pad.size = screen_size
 	pad_center = Vector2(142.0, screen_size.y - 150.0)
 	pad.queue_redraw()
+
+func _layout_controls() -> void:
+	var short_side := minf(screen_size.x, screen_size.y)
+	pad_radius = clampf(short_side * 0.105, 64.0, 92.0)
+	pad_center = Vector2(maxf(pad_radius + 24.0, screen_size.x * 0.13), screen_size.y - maxf(pad_radius + 30.0, screen_size.y * 0.18))
 
 func _draw_controls() -> void:
 	pad.draw_circle(pad_center, pad_radius + 13.0, Color(0.02, 0.04, 0.07, 0.22))
