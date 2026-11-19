@@ -2,7 +2,6 @@
 """Fetch an Astana-area OpenStreetMap snapshot as compact GeoJSON for KOKBORI."""
 import json
 import os
-import sys
 import time
 import urllib.parse
 import urllib.request
@@ -27,6 +26,70 @@ QUERY = f"""[out:json][timeout:240];
 out tags geom;
 """
 
+
+def rounded_coords(points):
+    return [[round(float(p["lon"]), 6), round(float(p["lat"]), 6)] for p in points]
+
+
+def ring_area(ring):
+    """Signed shoelace area; used to select the smallest containing outer ring."""
+    return sum(
+        ring[i][0] * ring[(i + 1) % len(ring)][1]
+        - ring[(i + 1) % len(ring)][0] * ring[i][1]
+        for i in range(len(ring))
+    ) * 0.5
+
+
+def point_in_ring(point, ring):
+    """Return whether a 2D point is inside a ring using ray casting."""
+    x, y = point
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i]
+        xj, yj = ring[j]
+        if (yi > y) != (yj > y):
+            crossing_x = (xj - xi) * (y - yi) / (yj - yi) + xi
+            if x < crossing_x:
+                inside = not inside
+        j = i
+    return inside
+
+
+def assemble_multipolygon(members, coordinate_converter):
+    """Group relation outer rings with the inner rings that belong to them."""
+    outers, inners = [], []
+    for member in members:
+        role = member.get("role", "")
+        if role not in ("outer", "inner"):
+            continue
+        ring = coordinate_converter(member.get("geometry", []))
+        if len(ring) < 4 or ring[0] != ring[-1]:
+            continue
+        # Remove the duplicate closing coordinate while testing/serializing.
+        ring = ring[:-1]
+        if len(ring) < 3:
+            continue
+        if role == "outer":
+            outers.append(ring)
+        else:
+            inners.append(ring)
+
+    polygons = [[outer] for outer in outers]
+    for inner in inners:
+        candidates = [
+            index for index, polygon in enumerate(polygons)
+            if point_in_ring(inner[0], polygon[0])
+        ]
+        if not candidates:
+            continue
+        owner = min(candidates, key=lambda index: abs(ring_area(polygons[index][0])))
+        polygons[owner].append(inner)
+
+    # GeoJSON linear rings must be closed.
+    return [[ring + [ring[0]] for ring in polygon] for polygon in polygons]
+
+
 def main():
     os.makedirs("Engine/data", exist_ok=True)
     req = urllib.request.Request(
@@ -43,9 +106,8 @@ def main():
             if attempt == 3:
                 raise
             time.sleep(12 * (attempt + 1))
+
     buckets = {"building": [], "road": [], "area": [], "water": []}
-    def rounded_coords(points):
-        return [[round(float(p["lon"]), 6), round(float(p["lat"]), 6)] for p in points]
 
     def props_for(tags, kind):
         return {
@@ -64,54 +126,56 @@ def main():
             "width": tags.get("width", ""),
         }
 
+    def add_polygon(bucket, rings, tags, kind):
+        if not rings or len(rings[0]) < 4:
+            return
+        buckets[bucket].append({
+            "type": "Feature",
+            "properties": props_for(tags, kind),
+            "geometry": {"type": "Polygon", "coordinates": rings},
+        })
+
     def add_feature(kind, coords, tags):
         if len(coords) < 2:
             return
         closed = len(coords) >= 4 and coords[0] == coords[-1]
         if kind == "building" and closed:
-            geometry = {"type": "Polygon", "coordinates": [coords]}
-            bucket = "building"
+            add_polygon("building", [coords], tags, "building")
         elif closed and kind == "area":
-            geometry = {"type": "Polygon", "coordinates": [coords]}
-            bucket = "area"
+            area_kind = "water_area" if tags.get("natural") == "water" else "green_area"
+            add_polygon("area", [coords], tags, area_kind)
         else:
-            geometry = {"type": "LineString", "coordinates": coords}
             bucket = "road" if kind == "road" else "water"
-        buckets[bucket].append({
-            "type": "Feature",
-            "properties": props_for(tags, "water_area" if bucket == "area" and tags.get("natural") == "water" else
-                                    "green_area" if bucket == "area" else
-                                    "water" if bucket == "water" else
-                                    "building" if bucket == "building" else "road"),
-            "geometry": geometry,
-        })
+            feature_kind = "road" if bucket == "road" else "water"
+            buckets[bucket].append({
+                "type": "Feature",
+                "properties": props_for(tags, feature_kind),
+                "geometry": {"type": "LineString", "coordinates": coords},
+            })
 
     for element in payload.get("elements", []):
         tags = element.get("tags", {})
         if element.get("type") == "way":
-            points = element.get("geometry", [])
-            coords = rounded_coords(points)
+            coords = rounded_coords(element.get("geometry", []))
             if "building" in tags or "building:part" in tags:
                 add_feature("building", coords, tags)
             elif "highway" in tags:
                 add_feature("road", coords, tags)
             elif "waterway" in tags:
                 add_feature("water", coords, tags)
-            elif any(k in tags for k in ("leisure", "landuse", "natural")):
+            elif any(key in tags for key in ("leisure", "landuse", "natural")):
                 add_feature("area", coords, tags)
         elif element.get("type") == "relation":
-            # Keep outer rings of mapped multipolygons; inner holes are not yet
-            # represented by the current in-game polygon renderer.
-            for member in element.get("members", []):
-                if member.get("role", "") != "outer":
-                    continue
-                coords = rounded_coords(member.get("geometry", []))
-                if len(coords) < 4 or coords[0] != coords[-1]:
-                    continue
-                if "building" in tags:
-                    add_feature("building", coords, tags)
-                elif any(k in tags for k in ("leisure", "landuse", "natural")):
-                    add_feature("area", coords, tags)
+            if "building" in tags:
+                bucket, kind = "building", "building"
+            elif any(key in tags for key in ("leisure", "landuse", "natural")):
+                bucket = "area"
+                kind = "water_area" if tags.get("natural") == "water" else "green_area"
+            else:
+                continue
+            polygons = assemble_multipolygon(element.get("members", []), rounded_coords)
+            for rings in polygons:
+                add_polygon(bucket, rings, tags, kind)
 
     # Bound the mobile snapshot and preserve a mix of city features.
     limits = {"building": 11000, "road": 6000, "area": 700, "water": 300}
@@ -120,11 +184,17 @@ def main():
         features.extend(buckets[key][:limits[key]])
     if not features:
         raise RuntimeError("Overpass returned no usable Astana features")
-    out = {"type": "FeatureCollection", "source": "© OpenStreetMap contributors",
-           "bbox": [WEST, SOUTH, EAST, NORTH], "features": features}
-    with open("Engine/data/astana_osm.geojson", "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+
+    out = {
+        "type": "FeatureCollection",
+        "source": "© OpenStreetMap contributors",
+        "bbox": [WEST, SOUTH, EAST, NORTH],
+        "features": features,
+    }
+    with open("Engine/data/astana_osm.geojson", "w", encoding="utf-8") as output:
+        json.dump(out, output, ensure_ascii=False, separators=(",", ":"))
     print(f"Saved {len(features)} OSM features to Engine/data/astana_osm.geojson (bounded mobile snapshot)")
+
 
 if __name__ == "__main__":
     main()
