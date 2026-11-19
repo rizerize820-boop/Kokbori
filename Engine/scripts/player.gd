@@ -63,8 +63,8 @@ func _physics_process(delta: float) -> void:
 		if jump_requested:
 			velocity.y = 6.2
 	jump_requested = false
-	if direction.length() > 0.08:
-		rotation.y = lerp_angle(rotation.y, atan2(-direction.x, -direction.z), delta * 8.0)
+	# Keep the player root fixed: rotating it also rotates its child camera pivot.
+	# Camera yaw is controlled exclusively by apply_look(), never by joystick movement.
 	move_and_slide()
 
 func apply_look(screen_delta: Vector2) -> void:
