@@ -44,6 +44,10 @@ func _ready() -> void:
 	camera.current = true
 
 func _physics_process(delta: float) -> void:
+	# Recover safely if the character ever leaves the playable map or falls below the floor.
+	if global_position.y < -5.0:
+		global_position = Vector3(global_position.x, 1.0, global_position.z)
+		velocity = Vector3.ZERO
 	var input_dir := Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
