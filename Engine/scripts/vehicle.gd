@@ -1,18 +1,16 @@
-extends CharacterBody3D
+extends VehicleBody3D
 
-const MAX_SPEED := 55.56 # 200 km/h
-const REVERSE_SPEED := 11.11 # 40 km/h
-const ACCELERATION := 22.0
-const BRAKE_DECELERATION := 20.0
-const COAST_DECELERATION := 1.6
-const STEERING_RATE := 1.55
-const HANDBRAKE_DECELERATION := 8.0
+const MAX_SPEED_KMH := 140.0
+const MAX_ENGINE_FORCE := 900.0
+const MAX_REVERSE_FORCE := 420.0
+const MAX_BRAKE_FORCE := 55.0
+const HANDBRAKE_FORCE := 90.0
+const MAX_STEER_ANGLE := 0.45
+const STEER_SPEED := 5.0
 
 var throttle := 0.0
-var steering := 0.0
-var steering_smooth := 0.0
+var steering_input := 0.0
 var handbrake := false
-var speed := 0.0
 var driving := false
 var driver: CharacterBody3D
 var driver_collider: CollisionShape3D
@@ -21,41 +19,63 @@ var driver_mesh: Node3D
 
 func _ready() -> void:
 	name = "Toyota_Camry_55"
-	_build_car()
-
-func _build_car() -> void:
-	# Keep a simple physics collider independent from the imported visual model.
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(2.05, 1.25, 4.55)
-	collision.shape = shape
-	collision.position.y = 0.625
-	# The collider's bottom is aligned with the vehicle root, which rests on Y=0.
-	floor_snap_length = 0.55
-	floor_stop_on_slope = true
-	safe_margin = 0.04
-	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	mass = 1250.0
+	linear_damp = 0.12
+	angular_damp = 1.8
+	continuous_cd = true
+	can_sleep = false
 	collision_layer = 2
-	# Ignore OSM building AABBs; collide with the ground on layer 2 only.
+	# Ground is on layer 2 as well; oversized OSM building boxes are excluded.
 	collision_mask = 2
+	_build_chassis()
+	_build_wheels()
+	_build_visual()
+
+func _build_chassis() -> void:
+	var collision := CollisionShape3D.new()
+	collision.name = "ChassisCollision"
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.9, 0.72, 4.25)
+	collision.shape = shape
+	collision.position = Vector3(0.0, -0.02, 0.0)
 	add_child(collision)
 
+func _build_wheels() -> void:
+	_add_wheel("FrontLeftWheel", Vector3(-0.79, -0.60, -1.34), true, false)
+	_add_wheel("FrontRightWheel", Vector3(0.79, -0.60, -1.34), true, false)
+	_add_wheel("RearLeftWheel", Vector3(-0.79, -0.60, 1.34), false, true)
+	_add_wheel("RearRightWheel", Vector3(0.79, -0.60, 1.34), false, true)
+
+func _add_wheel(wheel_name: String, wheel_position: Vector3, steering_wheel: bool, traction_wheel: bool) -> void:
+	var wheel := VehicleWheel3D.new()
+	wheel.name = wheel_name
+	wheel.position = wheel_position
+	wheel.use_as_steering = steering_wheel
+	wheel.use_as_traction = traction_wheel
+	wheel.wheel_radius = 0.34
+	wheel.wheel_rest_length = 0.20
+	wheel.suspension_travel = 0.22
+	wheel.suspension_stiffness = 25.0
+	wheel.suspension_max_force = 9000.0
+	wheel.damping_compression = 4.4
+	wheel.damping_relaxation = 2.3
+	wheel.wheel_friction_slip = 1.35
+	wheel.wheel_roll_influence = 0.08
+	add_child(wheel)
+
+func _build_visual() -> void:
 	var model_resource := load("res://assets/vehicles/admiral.glb")
 	if model_resource is PackedScene:
 		var model := (model_resource as PackedScene).instantiate()
 		model.name = "Camry_55_Model"
-		model.position = Vector3.ZERO
 		add_child(model)
-		# Imported vehicle files often have their origin below or above the wheels.
-		# Measure the actual mesh bounds and place the lowest point just above the road.
-		_fit_model_to_ground.call_deferred(model)
+		_fit_model_to_wheels.call_deferred(model)
 	else:
-		push_warning("Could not load res://assets/vehicles/admiral.glb; using fallback car body.")
-		_add_box("Fallback Camry body", Vector3(0, 0.67, 0), Vector3(1.92, 0.62, 4.35), Color("#202832"))
-		_add_box("Fallback roof", Vector3(0, 1.48, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
+		push_warning("Could not load vehicle model; using fallback body.")
+		_add_box("Fallback body", Vector3(0, -0.02, 0), Vector3(1.9, 0.65, 4.2), Color("#202832"))
+		_add_box("Fallback roof", Vector3(0, 0.72, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
 
-
-func _fit_model_to_ground(model: Node3D) -> void:
+func _fit_model_to_wheels(model: Node3D) -> void:
 	if not is_instance_valid(model):
 		return
 	var found_mesh := false
@@ -67,26 +87,23 @@ func _fit_model_to_ground(model: Node3D) -> void:
 		var mesh_bounds := mesh_instance.get_aabb()
 		var relative_transform := model.global_transform.affine_inverse() * mesh_instance.global_transform
 		for corner_index in range(8):
-			var corner := mesh_bounds.get_endpoint(corner_index)
-			var point := relative_transform * corner
+			var point := relative_transform * mesh_bounds.get_endpoint(corner_index)
 			if not found_mesh:
 				bounds = AABB(point, Vector3.ZERO)
 				found_mesh = true
 			else:
 				bounds = bounds.expand(point)
 	if found_mesh:
-		# Vehicle root is spawned 0.15 m above the road; keep the mesh bottom
-		# at world Y=0.08 regardless of the GLB's original pivot and scale.
-		model.position.y = 0.11 - bounds.position.y
+		# The physics wheels sit about 1.14 m below the VehicleBody origin.
+		model.position.y = -1.03 - bounds.position.y
 	else:
-		push_warning("Imported vehicle model has no MeshInstance3D nodes; ground fitting skipped.")
+		push_warning("Vehicle model has no MeshInstance3D nodes; visual fitting skipped.")
 
-
-func _mat(color: Color, roughness: float = 0.55, metallic: float = 0.12) -> StandardMaterial3D:
+func _mat(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = roughness
-	material.metallic = metallic
+	material.roughness = 0.55
+	material.metallic = 0.12
 	return material
 
 func _add_box(part_name: String, pos: Vector3, size: Vector3, color: Color) -> void:
@@ -121,16 +138,15 @@ func toggle_player() -> void:
 			driver_collider.set_deferred("disabled", true)
 		if driver_mesh != null:
 			driver_mesh.visible = false
-		# Keep the player separate from the vehicle physics body.
 		driver.global_position = global_position + Vector3.UP * 0.9
 		driver.global_rotation = global_rotation
 	else:
 		driving = false
 		throttle = 0.0
-		steering = 0.0
-		steering_smooth = 0.0
+		steering_input = 0.0
 		handbrake = false
-		speed = 0.0
+		engine_force = 0.0
+		brake = 0.0
 		driver.global_position = global_position + global_transform.basis.x * 2.2 + Vector3.UP * 0.95
 		driver.global_rotation = Vector3.ZERO
 		if driver_collider != null:
@@ -140,65 +156,57 @@ func toggle_player() -> void:
 		driver.set_physics_process(true)
 
 func set_controls(gas: float, turn: float) -> void:
-	# Mobile pedals call this continuously while held; keep throttle independent
-	# from steering/joystick updates so releasing the stick cannot cancel GAS.
 	if not driving:
 		throttle = 0.0
-		steering = 0.0
+		steering_input = 0.0
 		return
 	throttle = clampf(gas, -1.0, 1.0)
-	steering = clampf(turn, -1.0, 1.0)
+	steering_input = clampf(turn, -1.0, 1.0)
 
 func set_handbrake(pressed: bool) -> void:
 	handbrake = pressed
 
 func get_speed_kmh() -> int:
-	return int(round(absf(speed) * 3.6))
+	var forward_speed := linear_velocity.dot(-global_transform.basis.z)
+	return int(round(absf(forward_speed) * 3.6))
 
 func _physics_process(delta: float) -> void:
-	# Keep the car recoverable if it ever slips outside the ground collider.
 	if global_position.y < -5.0:
-		global_position.y = 1.0
-		velocity = Vector3.ZERO
-		speed = 0.0
+		global_position = Vector3(global_position.x, 1.15, global_position.z)
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
 	if not driving:
+		engine_force = 0.0
+		brake = 0.0
 		return
-	# Keep the hidden driver and camera above the chassis while driving.
+
+	var forward_speed := linear_velocity.dot(-global_transform.basis.z)
+	var speed_kmh := absf(forward_speed) * 3.6
+	var engine := 0.0
+	var braking := 1.0
+
+	if throttle > 0.05:
+		if forward_speed < -0.5:
+			braking = MAX_BRAKE_FORCE
+		elif speed_kmh < MAX_SPEED_KMH:
+			engine = MAX_ENGINE_FORCE * throttle
+	elif throttle < -0.05:
+		if forward_speed > 0.5:
+			braking = MAX_BRAKE_FORCE
+		elif speed_kmh < 35.0:
+			engine = MAX_REVERSE_FORCE * throttle
+
+	if handbrake:
+		engine = 0.0
+		braking = HANDBRAKE_FORCE
+
+	engine_force = engine
+	brake = braking
+
+	var speed_factor := clampf(1.0 - speed_kmh / MAX_SPEED_KMH * 0.65, 0.35, 1.0)
+	var target_steer := -steering_input * MAX_STEER_ANGLE * speed_factor
+	steering = move_toward(steering, target_steer, STEER_SPEED * delta)
+
 	if is_instance_valid(driver):
 		driver.global_position = global_position + Vector3.UP * 0.85
 		driver.global_rotation = global_rotation
-	# SA-MP-style arcade handling: progressive throttle, distinct braking/reverse,
-	# speed-sensitive steering and a handbrake that tightens the turn.
-	if throttle > 0.05:
-		if speed < -0.5:
-			speed = move_toward(speed, 0.0, BRAKE_DECELERATION * delta)
-		else:
-			speed = move_toward(speed, MAX_SPEED, ACCELERATION * delta)
-	elif throttle < -0.05:
-		if speed > 0.5:
-			speed = move_toward(speed, 0.0, BRAKE_DECELERATION * delta)
-		else:
-			speed = move_toward(speed, -REVERSE_SPEED, ACCELERATION * 0.72 * delta)
-	else:
-		var drag := HANDBRAKE_DECELERATION if handbrake else COAST_DECELERATION
-		speed = move_toward(speed, 0.0, drag * delta)
-
-	var speed_ratio := clampf(absf(speed) / MAX_SPEED, 0.0, 1.0)
-	var steer_response := 5.5 if not handbrake else 8.0
-	steering_smooth = move_toward(steering_smooth, steering, steer_response * delta)
-	var steer_factor := lerpf(1.0, 0.34, speed_ratio)
-	var handbrake_factor := 1.45 if handbrake else 1.0
-	if absf(speed) > 0.2:
-		rotate_y(-steering_smooth * STEERING_RATE * steer_factor * handbrake_factor * signf(speed) * delta)
-
-	var forward := -global_transform.basis.z
-	velocity.x = forward.x * speed
-	velocity.z = forward.z * speed
-	if not is_on_floor():
-		velocity.y -= 22.0 * delta
-	else:
-		velocity.y = -0.15
-	move_and_slide()
-	for child in get_children():
-		if child is Node3D and child.has_meta("front_wheel"):
-			child.rotation.y = -steering * 0.42
