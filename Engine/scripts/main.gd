@@ -56,6 +56,16 @@ func _ready() -> void:
 		_build_street_grid()
 		_build_city()
 
+	# Spawn at the open forecourt south of Astana-Nurly Zhol, away from the map origin.
+	if use_osm:
+		var station_forecourt := _osm_point([71.53175, 51.11145])
+		camry.global_position = Vector3(station_forecourt.x + 3.5, 1.15, station_forecourt.z)
+		camry.global_rotation = Vector3.ZERO
+		player.global_position = Vector3(station_forecourt.x - 2.8, 1.0, station_forecourt.z + 1.0)
+	else:
+		camry.global_position = Vector3(0.0, 1.15, 0.0)
+		player.global_position = Vector3(-2.8, 1.0, 0.0)
+
 	_hide_loading_screen()
 
 func _show_loading_screen(message: String) -> void:
@@ -81,15 +91,16 @@ func _hide_loading_screen() -> void:
 	loading_layer = null
 
 func _build_materials() -> void:
-	materials["road"] = _material(Color("#252b33"))
-	materials["sidewalk"] = _material(Color("#aeb5b7"))
+	materials["road"] = _material(Color("#202832"))
+	(materials["road"] as StandardMaterial3D).roughness = 0.94
+	materials["sidewalk"] = _material(Color("#c0c5c5"))
 	materials["line"] = _material(Color("#e7dfbd"))
 	materials["road_mark"] = _material(Color("#e8dfc4"))
 	materials["road_edge"] = _material(Color("#b9c0bd"))
 	materials["grass"] = _material(Color("#667b68"))
-	materials["building_a"] = _material(Color("#b8b9b4"))
-	materials["building_b"] = _material(Color("#9fa9b2"))
-	materials["building_c"] = _material(Color("#c5b9a7"))
+	materials["building_a"] = _material(Color("#c0c5c7"))
+	materials["building_b"] = _material(Color("#aab7c0"))
+	materials["building_c"] = _material(Color("#c9bda9"))
 	materials["window_glass"] = _material(Color("#243f55"))
 	(materials["window_glass"] as StandardMaterial3D).roughness = 0.22
 	(materials["window_glass"] as StandardMaterial3D).metallic = 0.24
@@ -152,7 +163,11 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#b8c8dc")
-	env.ambient_light_energy = 0.95
+	env.ambient_light_energy = 1.05
+	env.tonemap_exposure = 1.08
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.12
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color("#b8c5ce")
@@ -437,9 +452,9 @@ const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
 const OSM_MAX_FEATURES := 50000
-const OSM_RENDER_RADIUS := 6000.0
+const OSM_RENDER_RADIUS := 8500.0
 const OSM_FACADE_RADIUS := 2500.0
-const OSM_COLLISION_RADIUS := 6000.0
+const OSM_COLLISION_RADIUS := 8500.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
