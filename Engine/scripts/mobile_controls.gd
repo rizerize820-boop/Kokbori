@@ -40,62 +40,86 @@ func _on_viewport_resized() -> void:
 
 func _layout_controls() -> void:
 	var short_side := minf(screen_size.x, screen_size.y)
-	pad_radius = clampf(short_side * 0.11, 74.0, 102.0)
-	pad_center = Vector2(maxf(pad_radius + 26.0, screen_size.x * 0.12), screen_size.y - maxf(pad_radius + 34.0, screen_size.y * 0.17))
-	jump_button = Vector2(screen_size.x - 132.0, screen_size.y - 142.0)
-	sprint_button = Vector2(screen_size.x - 286.0, screen_size.y - 108.0)
-	vehicle_button = Vector2(screen_size.x - 142.0, screen_size.y - 405.0)
-	handbrake_button = Vector2(screen_size.x - 140.0, screen_size.y - 282.0)
-	gas_button = Vector2(screen_size.x - 142.0, screen_size.y - 145.0)
-	brake_button = Vector2(screen_size.x - 300.0, screen_size.y - 145.0)
+	var ui_scale := clampf(short_side / 820.0, 0.82, 1.18)
+	pad_radius = clampf(short_side * 0.125, 82.0, 116.0)
+	pad_center = Vector2(maxf(pad_radius + 30.0, screen_size.x * 0.14), screen_size.y - maxf(pad_radius + 38.0, screen_size.y * 0.18))
+	jump_button = Vector2(screen_size.x - 142.0 * ui_scale, screen_size.y - 150.0 * ui_scale)
+	sprint_button = Vector2(screen_size.x - 300.0 * ui_scale, screen_size.y - 112.0 * ui_scale)
+	vehicle_button = Vector2(screen_size.x - 145.0 * ui_scale, screen_size.y - 420.0 * ui_scale)
+	handbrake_button = Vector2(screen_size.x - 145.0 * ui_scale, screen_size.y - 290.0 * ui_scale)
+	gas_button = Vector2(screen_size.x - 145.0 * ui_scale, screen_size.y - 150.0 * ui_scale)
+	brake_button = Vector2(screen_size.x - 310.0 * ui_scale, screen_size.y - 150.0 * ui_scale)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
-	# Top identity/status panel.
-	hud.draw_rect(Rect2(22, 18, 300, 66), Color(0.025, 0.055, 0.09, 0.78), true, 12.0)
-	hud.draw_string(font, Vector2(42, 46), "KOKBORI  /  ASTANA", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("#f3f7fb"))
-	hud.draw_string(font, Vector2(42, 70), "CITIZEN  •  LEVEL 1", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#a9c4d8"))
-	# Health and stamina indicators.
-	hud.draw_rect(Rect2(344, 28, 170, 12), Color(0.02, 0.04, 0.07, 0.72), true, 6.0)
-	hud.draw_rect(Rect2(344, 28, 148, 12), Color("#55c98b"), true, 6.0)
-	hud.draw_string(font, Vector2(344, 62), "HEALTH  100", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#eaf2f7"))
-	hud.draw_rect(Rect2(344, 68, 170, 7), Color(0.02, 0.04, 0.07, 0.72), true, 4.0)
-	hud.draw_rect(Rect2(344, 68, 130, 7), Color("#5bb8ed"), true, 4.0)
-	# Compact minimap.
-	var map_center := Vector2(screen_size.x - 104.0, 104.0)
-	hud.draw_circle(map_center, 76.0, Color(0.015, 0.035, 0.055, 0.78))
-	hud.draw_arc(map_center, 72.0, 0.0, TAU, 64, Color("#a9c5d8", 0.9), 3.0, true)
-	hud.draw_line(map_center + Vector2(-48, 0), map_center + Vector2(48, 0), Color("#66859a", 0.8), 5.0)
-	hud.draw_line(map_center + Vector2(0, -48), map_center + Vector2(0, 48), Color("#66859a", 0.8), 5.0)
-	hud.draw_circle(map_center, 7.0, Color("#ffd36b"))
-	hud.draw_string(font, map_center + Vector2(-5, -83), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#f3f7fb"))
-	# Movement joystick.
-	hud.draw_circle(pad_center, pad_radius + 12.0, Color(0.015, 0.035, 0.06, 0.24))
-	hud.draw_circle(pad_center, pad_radius, Color(0.035, 0.075, 0.12, 0.62))
-	hud.draw_arc(pad_center, pad_radius, 0.0, TAU, 72, Color("#c4d8e8", 0.9), 3.0, true)
-	var knob := pad_center + stick_vector * pad_radius * 0.70
-	hud.draw_circle(knob, 34.0, Color("#b8cbdc", 0.94))
-	hud.draw_arc(knob, 34.0, 0.0, TAU, 48, Color("#f5f9fc"), 2.0, true)
-	# Action buttons.
+	var ui_scale := clampf(minf(screen_size.x, screen_size.y) / 820.0, 0.82, 1.18)
 	var driving_now := vehicle != null and bool(vehicle.get("driving"))
+
+	# Roleplay-style player card with clear hierarchy and larger status bars.
+	var card := Rect2(20.0, 20.0, 326.0 * ui_scale, 112.0 * ui_scale)
+	hud.draw_rect(card.grow(4.0), Color(0.0, 0.0, 0.0, 0.22), true, 15.0)
+	hud.draw_rect(card, Color(0.025, 0.055, 0.085, 0.91), true, 14.0)
+	hud.draw_rect(Rect2(card.position, Vector2(5.0, card.size.y)), Color("#d8a84f"), true)
+	hud.draw_string(font, card.position + Vector2(20.0, 31.0) * ui_scale, "KOKBORI", HORIZONTAL_ALIGNMENT_LEFT, -1, int(22 * ui_scale), Color("#f5f8fb"))
+	hud.draw_string(font, card.position + Vector2(20.0, 53.0) * ui_scale, "ASTANA  •  ГОРОДСКАЯ ЖИЗНЬ", HORIZONTAL_ALIGNMENT_LEFT, -1, int(11 * ui_scale), Color("#9db5c7"))
+	hud.draw_string(font, card.position + Vector2(20.0, 78.0) * ui_scale, "ЗДОРОВЬЕ", HORIZONTAL_ALIGNMENT_LEFT, -1, int(11 * ui_scale), Color("#dce7ef"))
+	hud.draw_rect(Rect2(card.position + Vector2(104.0, 66.0) * ui_scale, Vector2(196.0, 13.0) * ui_scale), Color("#182b38"), true, 6.0)
+	hud.draw_rect(Rect2(card.position + Vector2(104.0, 66.0) * ui_scale, Vector2(180.0, 13.0) * ui_scale), Color("#54c58b"), true, 6.0)
+	hud.draw_string(font, card.position + Vector2(20.0, 99.0) * ui_scale, "ВЫНОСЛИВОСТЬ", HORIZONTAL_ALIGNMENT_LEFT, -1, int(10 * ui_scale), Color("#dce7ef"))
+	hud.draw_rect(Rect2(card.position + Vector2(120.0, 88.0) * ui_scale, Vector2(180.0, 9.0) * ui_scale), Color("#182b38"), true, 5.0)
+	hud.draw_rect(Rect2(card.position + Vector2(120.0, 88.0) * ui_scale, Vector2(145.0, 9.0) * ui_scale), Color("#56aee8"), true, 5.0)
+
+	# Larger minimap panel in the upper-right corner.
+	var map_radius := 78.0 * ui_scale
+	var map_center := Vector2(screen_size.x - map_radius - 26.0, map_radius + 27.0)
+	hud.draw_circle(map_center, map_radius + 8.0, Color(0.0, 0.0, 0.0, 0.24))
+	hud.draw_circle(map_center, map_radius, Color(0.018, 0.045, 0.065, 0.94))
+	hud.draw_arc(map_center, map_radius - 4.0, 0.0, TAU, 72, Color("#d2b16e"), 3.0, true)
+	hud.draw_line(map_center + Vector2(-48, 0) * ui_scale, map_center + Vector2(48, 0) * ui_scale, Color("#527286", 0.9), 5.0 * ui_scale)
+	hud.draw_line(map_center + Vector2(0, -48) * ui_scale, map_center + Vector2(0, 48) * ui_scale, Color("#527286", 0.9), 5.0 * ui_scale)
+	hud.draw_circle(map_center, 7.0 * ui_scale, Color("#f3c66c"))
+	hud.draw_string(font, map_center + Vector2(-5.0, -map_radius - 7.0), "N", HORIZONTAL_ALIGNMENT_CENTER, 12.0, int(13 * ui_scale), Color("#f5f8fb"))
+
+	# Left-side movement pad.
+	hud.draw_circle(pad_center, pad_radius + 13.0, Color(0.0, 0.0, 0.0, 0.24))
+	hud.draw_circle(pad_center, pad_radius, Color(0.025, 0.065, 0.095, 0.72))
+	hud.draw_arc(pad_center, pad_radius, 0.0, TAU, 72, Color("#d2b16e", 0.95), 3.0, true)
+	var knob := pad_center + stick_vector * pad_radius * 0.70
+	hud.draw_circle(knob, 37.0 * ui_scale, Color("#b8cbd8", 0.96))
+	hud.draw_arc(knob, 37.0 * ui_scale, 0.0, TAU, 48, Color("#ffffff"), 2.0, true)
+	hud.draw_string(font, pad_center + Vector2(-25.0, pad_radius + 27.0), "MOVE", HORIZONTAL_ALIGNMENT_CENTER, 50.0, int(11 * ui_scale), Color("#e3edf4", 0.9))
+
+	# Right-side actions use larger, high-contrast hit targets.
 	if driving_now:
-		_draw_action_button(gas_button, 72.0, "GAS", Color("#35b96f"))
-		_draw_action_button(brake_button, 63.0, "BRAKE", Color("#d45b55"))
-		_draw_action_button(handbrake_button, 55.0, "HANDBRK", Color("#bd8742"))
+		_draw_action_button(gas_button, 82.0 * ui_scale, "ГАЗ", Color("#269d61"))
+		_draw_action_button(brake_button, 72.0 * ui_scale, "ТОРМОЗ", Color("#bd4e4b"))
+		_draw_action_button(handbrake_button, 63.0 * ui_scale, "РУЧНИК", Color("#bd8742"))
 	else:
-		_draw_action_button(jump_button, 59.0, "JUMP", Color("#4aa8e8"))
-		_draw_action_button(sprint_button, 47.0, "RUN", Color("#54b98a"))
+		_draw_action_button(jump_button, 66.0 * ui_scale, "ПРЫЖОК", Color("#398bc2"))
+		_draw_action_button(sprint_button, 54.0 * ui_scale, "БЕГ", Color("#269d72"))
 	if vehicle != null and (driving_now or bool(vehicle.call("can_enter"))):
-		_draw_action_button(vehicle_button, 60.0, "EXIT" if driving_now else "CAR", Color("#d6a84e"))
-		if driving_now:
-			hud.draw_string(font, Vector2(screen_size.x * 0.5 - 55.0, 66), str(vehicle.call("get_speed_kmh")) + " KM/H" + ("  GAS" if gas_pressed else ""), HORIZONTAL_ALIGNMENT_CENTER, 150, 22, Color("#ffffff"))
-	hud.draw_string(font, Vector2(screen_size.x * 0.50 - 46.0, 34), "FREE CAMERA", HORIZONTAL_ALIGNMENT_CENTER, 140, 13, Color("#e4edf4", 0.78))
+		_draw_action_button(vehicle_button, 66.0 * ui_scale, "ВЫЙТИ" if driving_now else "АВТО", Color("#bd9148"))
+
+	if driving_now:
+		# Dedicated speed panel, visually separated from the pedals.
+		var panel_size := Vector2(224.0, 112.0) * ui_scale
+		var panel_pos := Vector2(screen_size.x - panel_size.x - 26.0, screen_size.y - panel_size.y - 28.0)
+		hud.draw_rect(Rect2(panel_pos + Vector2(0, 5), panel_size), Color(0.0, 0.0, 0.0, 0.25), true, 13.0)
+		hud.draw_rect(Rect2(panel_pos, panel_size), Color(0.02, 0.055, 0.08, 0.92), true, 13.0)
+		hud.draw_rect(Rect2(panel_pos, Vector2(4.0, panel_size.y)), Color("#d8a84f"), true)
+		hud.draw_string(font, panel_pos + Vector2(18.0, 27.0) * ui_scale, "СКОРОСТЬ", HORIZONTAL_ALIGNMENT_LEFT, -1, int(12 * ui_scale), Color("#a9bfce"))
+		hud.draw_string(font, panel_pos + Vector2(16.0, 80.0) * ui_scale, str(vehicle.call("get_speed_kmh")), HORIZONTAL_ALIGNMENT_LEFT, 110.0 * ui_scale, int(43 * ui_scale), Color("#ffffff"))
+		hud.draw_string(font, panel_pos + Vector2(128.0, 77.0) * ui_scale, "КМ/Ч", HORIZONTAL_ALIGNMENT_LEFT, 55.0, int(13 * ui_scale), Color("#d8b66d"))
+		hud.draw_string(font, panel_pos + Vector2(18.0, 101.0) * ui_scale, "GAS АКТИВЕН" if gas_pressed else "KOKBORI MOTOR", HORIZONTAL_ALIGNMENT_LEFT, -1, int(9 * ui_scale), Color("#65d49a" if gas_pressed else "#8098a8"))
+	else:
+		hud.draw_string(font, Vector2(screen_size.x * 0.5 - 65.0, 34.0), "СВОБОДНЫЙ РЕЖИМ", HORIZONTAL_ALIGNMENT_CENTER, 150.0, int(12 * ui_scale), Color("#e4edf4", 0.9))
 
 func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
-	hud.draw_circle(center, radius + 7.0, Color(0.015, 0.035, 0.06, 0.35))
-	hud.draw_circle(center, radius, Color(tint, 0.72))
-	hud.draw_arc(center, radius, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
-	hud.draw_string(ThemeDB.fallback_font, center + Vector2(-radius * 0.55, 5.0), label, HORIZONTAL_ALIGNMENT_CENTER, radius * 1.1, 14, Color("#ffffff"))
+	hud.draw_circle(center, radius + 9.0, Color(0.0, 0.0, 0.0, 0.28))
+	hud.draw_circle(center, radius, Color(tint, 0.84))
+	hud.draw_arc(center, radius - 2.0, 0.0, TAU, 56, Color("#f4f7f8", 0.92), 3.0, true)
+	hud.draw_arc(center, radius - 8.0, 0.0, TAU, 56, Color(1.0, 1.0, 1.0, 0.20), 1.0, true)
+	hud.draw_string(ThemeDB.fallback_font, center + Vector2(-radius * 0.82, 6.0), label, HORIZONTAL_ALIGNMENT_CENTER, radius * 1.64, int(clampf(radius * 0.25, 12.0, 19.0)), Color("#ffffff"))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -125,19 +149,19 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 	if touches.has(index):
 		return
 	# Check driving controls before the joystick so compact screens cannot swallow GAS.
-	if vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 125.0:
+	if vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(gas_button) <= 100.0:
 		touches[index] = "gas"
 		gas_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 105.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(brake_button) <= 90.0:
 		touches[index] = "brake"
 		brake_pressed = true
 		_update_vehicle_controls()
-	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 90.0:
+	elif vehicle != null and bool(vehicle.get("driving")) and pos.distance_to(handbrake_button) <= 80.0:
 		touches[index] = "handbrake"
 		handbrake_pressed = true
 		vehicle.call("set_handbrake", true)
-	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 100.0:
+	elif vehicle != null and (bool(vehicle.get("driving")) or bool(vehicle.call("can_enter"))) and pos.distance_to(vehicle_button) <= 84.0:
 		touches[index] = "vehicle"
 		vehicle.call("toggle_player")
 		gas_pressed = false
