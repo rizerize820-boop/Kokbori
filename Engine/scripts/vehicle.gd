@@ -17,7 +17,7 @@ var driver_camera_pivot: Node3D
 var driver_mesh: Node3D
 
 func _ready() -> void:
-	name = "Toyota_Camry_XV50"
+	name = "Toyota_Camry_55"
 	_build_car()
 
 func _build_car() -> void:
@@ -28,7 +28,7 @@ func _build_car() -> void:
 	collision.position.y = 0.78
 	add_child(collision)
 
-	_add_box("Camry XV50 body", Vector3(0, 0.67, 0), Vector3(1.92, 0.62, 4.35), Color("#202832"))
+	_add_box("Camry 55 body", Vector3(0, 0.67, 0), Vector3(1.92, 0.62, 4.35), Color("#202832"))
 	_add_box("Bonnet", Vector3(0, 0.91, -1.28), Vector3(1.82, 0.20, 1.55), Color("#252f3a"))
 	_add_box("Roof", Vector3(0, 1.48, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
 	_add_box("Front windscreen", Vector3(0, 1.22, -0.91), Vector3(1.48, 0.52, 0.075), Color("#527080"))
