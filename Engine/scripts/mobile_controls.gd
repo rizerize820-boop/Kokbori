@@ -3,10 +3,13 @@ extends CanvasLayer
 var pad: Control
 var knob: Control
 var active_touch := -1
+var look_touch := -1
+var player: Node3D
 var pad_center := Vector2.ZERO
 var pad_radius := 92.0
 
 func _ready() -> void:
+	player = get_parent().get_node_or_null("Player") as Node3D
 	pad = Control.new()
 	pad.position = Vector2(42, get_viewport().get_visible_rect().size.y - 260)
 	pad.size = Vector2(220, 220)
@@ -27,6 +30,13 @@ func _ready() -> void:
 	note.position = Vector2(42, get_viewport().get_visible_rect().size.y - 32)
 	note.add_theme_font_size_override("font_size", 16)
 	add_child(note)
+
+	var look_note := Label.new()
+	look_note.text = "Правая часть экрана — обзор камеры"
+	look_note.position = Vector2(get_viewport().get_visible_rect().size.x - 330, get_viewport().get_visible_rect().size.y - 32)
+	look_note.add_theme_font_size_override("font_size", 16)
+	look_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(look_note)
 
 func _draw_pad() -> void:
 	pad.draw_circle(pad_center, pad_radius, Color(0.04, 0.08, 0.14, 0.42))
@@ -69,3 +79,16 @@ func _set_action(action_name: String, pressed: bool) -> void:
 		Input.action_press(action_name)
 	else:
 		Input.action_release(action_name)
+
+func _input(event: InputEvent) -> void:
+	var screen_width := get_viewport().get_visible_rect().size.x
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			if event.position.x > screen_width * 0.42 and look_touch == -1:
+				look_touch = event.index
+		else:
+			if event.index == look_touch:
+				look_touch = -1
+	elif event is InputEventScreenDrag and event.index == look_touch:
+		if player != null and player.has_method("apply_look"):
+			player.call("apply_look", event.relative)
