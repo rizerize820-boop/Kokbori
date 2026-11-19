@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-godot-ios:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,17 +44,18 @@ jobs:
           mkdir -p Engine/build
           "$GODOT" --headless --path Engine --export-debug "iOS" build/KOKBORI-Godot-iOS
           test -d Engine/build/KOKBORI-Godot-iOS
-          find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print
+          test -d Engine/build/KOKBORI-Godot-iOS.xcodeproj
 
       - name: Build unsigned iOS app with Xcode
         run: |
           set -euxo pipefail
-          PROJECT="$(find Engine/build/KOKBORI-Godot-iOS -maxdepth 4 -name '*.xcodeproj' -print -quit)"
-          test -n "$PROJECT"
+          PROJECT="Engine/build/KOKBORI-Godot-iOS.xcodeproj"
+          test -d "$PROJECT"
           xcodebuild -list -project "$PROJECT"
           SCHEME="$(xcodebuild -list -json -project "$PROJECT" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["project"]["schemes"][0])')"
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphoneos -configuration Release -derivedDataPath "$RUNNER_TEMP/KOKBORI-Godot-DerivedData" CODE_SIGNING_ALLOWED=NO
           APP="$(find "$RUNNER_TEMP/KOKBORI-Godot-DerivedData/Build/Products" -maxdepth 3 -name '*.app' -print -quit)"
+          test -n "$APP"
           test -d "$APP"
           mkdir -p Payload
           cp -R "$APP" Payload/KOKBORI-RP.app
