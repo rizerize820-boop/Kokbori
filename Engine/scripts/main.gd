@@ -222,10 +222,11 @@ func _add_lamp(pos: Vector3) -> void:
 	_visual_box(lamp, Vector3(0, 4.75, -0.45), Vector3(0.85, 0.12, 0.18), materials["gold"])
 
 # OpenStreetMap coordinates are projected locally around central Astana.
-const OSM_ORIGIN_LON := 71.50158
-const OSM_ORIGIN_LAT := 51.10436
+const OSM_ORIGIN_LON := 71.4305
+const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
-const OSM_MAX_FEATURES := 18000
+const OSM_MAX_FEATURES := 52300
+var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
 	var lat_scale := cos(deg_to_rad(OSM_ORIGIN_LAT))
@@ -236,15 +237,24 @@ func _osm_point(coord: Array) -> Vector3:
 func _build_osm_city() -> void:
 	var file := FileAccess.open("res://data/astana_osm.geojson", FileAccess.READ)
 	if file == null:
+		push_error("Astana map data is missing.")
 		_build_street_grid()
 		_build_city()
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("features"):
-		push_warning("Astana OSM snapshot is invalid; using prototype district.")
+		push_error("Astana OSM snapshot is invalid.")
 		_build_street_grid()
 		_build_city()
 		return
+
+	# Combine geometry into a small number of shared meshes. Creating one node
+	# per building/road way made the full-city scene too expensive for iPhones.
+	for key in ["walls", "roofs", "roads", "paths", "water_lines", "green", "water_areas"]:
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_osm_surfaces[key] = tool
+
 	var features: Array = parsed["features"]
 	var processed := 0
 	for feature in features:
@@ -267,7 +277,27 @@ func _build_osm_city() -> void:
 		elif geometry.get("type", "") == "LineString" and coords.size() >= 2:
 			_add_osm_line(coords, kind, properties)
 			processed += 1
+		if processed > 0 and processed % 400 == 0:
+			await get_tree().process_frame
+
+	_commit_osm_surface("walls", materials["building_a"])
+	_commit_osm_surface("roofs", materials["building_b"])
+	_commit_osm_surface("roads", materials["road"])
+	_commit_osm_surface("paths", materials["sidewalk"])
+	_commit_osm_surface("water_lines", materials["water"])
+	_commit_osm_surface("green", materials["grass"])
+	_commit_osm_surface("water_areas", materials["water"])
 	print("Loaded ", processed, " Astana OpenStreetMap features. © OpenStreetMap contributors")
+
+func _commit_osm_surface(key: String, mat: Material) -> void:
+	var tool: SurfaceTool = _osm_surfaces[key]
+	var mesh := tool.commit()
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = mat
+	add_child(instance)
 
 func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	var points := PackedVector2Array()
@@ -289,12 +319,7 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 	var triangles := Geometry2D.triangulate_polygon(points)
 	if triangles.is_empty():
 		return
-	var facade := StandardMaterial3D.new()
-	facade.albedo_color = Color.from_string(str(properties.get("facade_colour", "")), Color("#a9adb0"))
-	facade.roughness = 0.86
-	facade.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var walls := SurfaceTool.new()
-	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var walls: SurfaceTool = _osm_surfaces["walls"]
 	for i in range(points.size()):
 		var a := points[i]
 		var b := points[(i + 1) % points.size()]
@@ -304,26 +329,11 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 		walls.add_vertex(Vector3(a.x, 0, a.y))
 		walls.add_vertex(Vector3(b.x, height, b.y))
 		walls.add_vertex(Vector3(a.x, height, a.y))
-	walls.generate_normals()
-	var wall_instance := MeshInstance3D.new()
-	wall_instance.mesh = walls.commit()
-	wall_instance.material_override = facade
-	add_child(wall_instance)
-	var roof := SurfaceTool.new()
-	roof.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var roof: SurfaceTool = _osm_surfaces["roofs"]
 	for i in range(0, triangles.size(), 3):
 		for j in range(3):
 			var p := points[triangles[i + j]]
 			roof.add_vertex(Vector3(p.x, height, p.y))
-	roof.generate_normals()
-	var roof_mat := StandardMaterial3D.new()
-	roof_mat.albedo_color = Color.from_string(str(properties.get("roof_colour", "")), Color("#777b7d"))
-	roof_mat.roughness = 0.9
-	roof_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var roof_instance := MeshInstance3D.new()
-	roof_instance.mesh = roof.commit()
-	roof_instance.material_override = roof_mat
-	add_child(roof_instance)
 
 func _add_osm_area(ring: Array, kind: String) -> void:
 	var points := PackedVector2Array()
@@ -337,23 +347,17 @@ func _add_osm_area(ring: Array, kind: String) -> void:
 	var indices := Geometry2D.triangulate_polygon(points)
 	if indices.is_empty():
 		return
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var key := "water_areas" if kind == "water_area" else "green"
+	var st: SurfaceTool = _osm_surfaces[key]
 	for i in range(0, indices.size(), 3):
 		for j in range(3):
 			var p := points[indices[i + j]]
 			st.add_vertex(Vector3(p.x, 0.035, p.y))
-	st.generate_normals()
-	var mat: Material = materials["water"] if kind == "water_area" else materials["grass"]
-	var instance := MeshInstance3D.new()
-	instance.mesh = st.commit()
-	instance.material_override = mat
-	add_child(instance)
 
 func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 	var highway := str(properties.get("highway", ""))
 	var width := 0.8
-	var mat: Material = materials["sidewalk"]
+	var key := "paths"
 	if kind == "road":
 		var road_widths := {
 			"motorway": 15.0, "trunk": 12.0, "primary": 10.0,
@@ -367,19 +371,15 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 			width = clampf(float(tagged_width), 1.0, 24.0)
 		elif str(properties.get("lanes", "")).is_valid_float():
 			width = clampf(float(properties.get("lanes")) * 3.2, 2.5, 24.0)
-		mat = materials["road"] if highway not in ["footway", "path", "cycleway", "pedestrian"] else materials["sidewalk"]
+		key = "roads" if highway not in ["footway", "path", "cycleway", "pedestrian"] else "paths"
 	elif kind == "water":
 		width = 3.0
-		mat = materials["water"]
+		key = "water_lines"
 	else:
 		width = 1.5
-		mat = materials["grass"]
+		key = "green"
 
-	# Build an entire OSM way as one mesh instead of one MeshInstance3D
-	# per segment. This sharply reduces scene-node and draw-call overhead.
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var added := false
+	var surface: SurfaceTool = _osm_surfaces[key]
 	for i in range(coords.size() - 1):
 		var a := _osm_point(coords[i])
 		var b := _osm_point(coords[i + 1])
@@ -398,11 +398,3 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 		surface.add_vertex(p1)
 		surface.add_vertex(p3)
 		surface.add_vertex(p4)
-		added = true
-	if not added:
-		return
-	surface.generate_normals()
-	var instance := MeshInstance3D.new()
-	instance.mesh = surface.commit()
-	instance.material_override = mat
-	add_child(instance)
