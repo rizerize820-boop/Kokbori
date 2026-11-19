@@ -5,16 +5,25 @@ const ControlsScript = preload("res://scripts/mobile_controls.gd")
 const VehicleScript = preload("res://scripts/vehicle.gd")
 
 var materials: Dictionary = {}
+var loading_layer: CanvasLayer
 
 func _ready() -> void:
 	_build_materials()
 	_build_environment()
+	_show_loading_screen("ЗАГРУЗКА ГОРОДА АСТАНЫ...")
+	await get_tree().process_frame
 	if FileAccess.file_exists("res://data/astana_osm.geojson"):
 		await _build_osm_city()
-		_build_baiterek()
+		if int(_osm_surfaces.get("processed_count", 0)) < 20:
+			push_warning("OSM map has too few usable features; loading fallback city.")
+			_build_street_grid()
+			_build_city()
+		else:
+			_build_baiterek()
 	else:
 		_build_street_grid()
 		_build_city()
+	_hide_loading_screen()
 	var player := CharacterBody3D.new()
 	player.set_script(PlayerScript)
 	player.position = Vector3(-1.0, 0.15, 38.0)
@@ -27,6 +36,28 @@ func _ready() -> void:
 	var controls := CanvasLayer.new()
 	controls.set_script(ControlsScript)
 	add_child(controls)
+
+func _show_loading_screen(message: String) -> void:
+	loading_layer = CanvasLayer.new()
+	loading_layer.layer = 100
+	add_child(loading_layer)
+	var panel := ColorRect.new()
+	panel.color = Color("#101a24")
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	loading_layer.add_child(panel)
+	var label := Label.new()
+	label.text = message
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.add_theme_color_override("font_color", Color("#e6edf2"))
+	label.add_theme_font_size_override("font_size", 22)
+	panel.add_child(label)
+
+func _hide_loading_screen() -> void:
+	if is_instance_valid(loading_layer):
+		loading_layer.queue_free()
+	loading_layer = null
 
 func _build_materials() -> void:
 	materials["road"] = _material(Color("#252b33"))
@@ -100,11 +131,11 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#b8c8dc")
-	env.ambient_light_energy = 0.72
+	env.ambient_light_energy = 0.82
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
-	env.fog_light_color = Color("#aabac8")
-	env.fog_density = 0.0018
+	env.fog_light_color = Color("#b8c5ce")
+	env.fog_density = 0.0009
 	world.environment = env
 	add_child(world)
 	var sun := DirectionalLight3D.new()
@@ -379,9 +410,9 @@ func _add_lamp(pos: Vector3) -> void:
 const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
-const OSM_MAX_FEATURES := 52300
-const OSM_RENDER_RADIUS := 7500.0
-const OSM_FACADE_RADIUS := 1800.0
+const OSM_MAX_FEATURES := 16000
+const OSM_RENDER_RADIUS := 3200.0
+const OSM_FACADE_RADIUS := 1100.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
@@ -443,8 +474,9 @@ func _build_osm_city() -> void:
 		elif geometry.get("type", "") == "LineString" and coords.size() >= 2:
 			_add_osm_line(coords, kind, properties)
 			processed += 1
-		if processed > 0 and processed % 400 == 0:
+		if processed > 0 and processed % 150 == 0:
 			await get_tree().process_frame
+	_osm_surfaces["processed_count"] = processed
 
 	_commit_osm_surface("walls", materials["building_a"])
 	_commit_osm_surface("roofs", materials["building_b"])
