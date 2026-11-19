@@ -211,7 +211,7 @@ func _build_baiterek() -> void:
 	gold_glass.metallic = 0.68
 	gold_glass.roughness = 0.16
 	gold_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gold_glass.albedo_color.a = 0.94
+	gold_glass.albedo_color = Color(0.86, 0.66, 0.18, 0.94)
 	var dark_glass := _material(Color("#354b59"))
 	dark_glass.metallic = 0.42
 	dark_glass.roughness = 0.2
