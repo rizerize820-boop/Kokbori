@@ -113,6 +113,19 @@ func _draw_hud() -> void:
 		hud.draw_string(font, panel_pos + Vector2(18.0, 101.0) * ui_scale, "GAS АКТИВЕН" if gas_pressed else "KOKBORI MOTOR", HORIZONTAL_ALIGNMENT_LEFT, -1, int(9 * ui_scale), Color("#65d49a" if gas_pressed else "#8098a8"))
 	else:
 		hud.draw_string(font, Vector2(screen_size.x * 0.5 - 65.0, 34.0), "СВОБОДНЫЙ РЕЖИМ", HORIZONTAL_ALIGNMENT_CENTER, 150.0, int(12 * ui_scale), Color("#e4edf4", 0.9))
+	var can_enter_now := vehicle != null and bool(vehicle.call("can_enter"))
+	var driving_state := vehicle != null and bool(vehicle.get("driving"))
+	var throttle_state := float(vehicle.get("throttle")) if vehicle != null else 0.0
+	var speed_state := int(vehicle.call("get_speed_kmh")) if vehicle != null else 0
+	var diagnostic := "CAR %s  |  ENTER %s  |  DRIVE %s  |  GAS %s  |  THR %.1f  |  %d KM/H" % [
+		("OK" if vehicle != null else "NULL"),
+		("YES" if can_enter_now else "NO"),
+		("ON" if driving_state else "OFF"),
+		("ON" if gas_pressed else "OFF"),
+		throttle_state,
+		speed_state
+	]
+	hud.draw_string(font, Vector2(18.0, screen_size.y - 16.0), diagnostic, HORIZONTAL_ALIGNMENT_LEFT, screen_size.x - 36.0, 12, Color("#ffffff", 0.92))
 
 func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
 	hud.draw_circle(center, radius + 9.0, Color(0.0, 0.0, 0.0, 0.28))
@@ -231,6 +244,8 @@ func _update_vehicle_controls() -> void:
 func _process(_delta: float) -> void:
 	# Keep touch states applied even if the joystick and pedal are held together.
 	_update_vehicle_controls()
+	if hud != null:
+		hud.queue_redraw()
 
 func _set_action(action_name: String, pressed: bool) -> void:
 	if pressed:
