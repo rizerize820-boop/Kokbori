@@ -103,7 +103,7 @@ func _draw_hud() -> void:
 	if driving_now:
 		# Dedicated speed panel, visually separated from the pedals.
 		var panel_size := Vector2(224.0, 112.0) * ui_scale
-		var panel_pos := Vector2(screen_size.x - panel_size.x - 26.0, screen_size.y - panel_size.y - 28.0)
+		var panel_pos := Vector2(screen_size.x * 0.5 - panel_size.x * 0.5, 148.0 * ui_scale)
 		hud.draw_rect(Rect2(panel_pos + Vector2(0, 5), panel_size), Color(0.0, 0.0, 0.0, 0.25), true, 13.0)
 		hud.draw_rect(Rect2(panel_pos, panel_size), Color(0.02, 0.055, 0.08, 0.92), true, 13.0)
 		hud.draw_rect(Rect2(panel_pos, Vector2(4.0, panel_size.y)), Color("#d8a84f"), true)
