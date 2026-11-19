@@ -2,11 +2,6 @@ name: Build KOKBORI Web Playtest
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "Engine/**"
-      - ".github/workflows/build-godot-web.yml"
 
 permissions:
   contents: read
