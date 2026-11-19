@@ -199,7 +199,13 @@ func _apply_movement(v: Vector2) -> void:
 
 func _update_vehicle_controls() -> void:
 	if vehicle != null and bool(vehicle.get("driving")):
-		vehicle.call("set_controls", 1.0 if gas_pressed else (-1.0 if brake_pressed else 0.0), stick_vector.x)
+		var throttle_value := 1.0 if gas_pressed else (-1.0 if brake_pressed else 0.0)
+		var steering_value := 0.0 if absf(stick_vector.x) < 0.12 else stick_vector.x
+		vehicle.call("set_controls", throttle_value, steering_value)
+
+func _process(_delta: float) -> void:
+	# Keep touch states applied even if the joystick and pedal are held together.
+	_update_vehicle_controls()
 
 func _set_action(action_name: String, pressed: bool) -> void:
 	if pressed:
