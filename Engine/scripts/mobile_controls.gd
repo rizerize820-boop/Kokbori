@@ -333,8 +333,8 @@ func _execute_command(raw_command: String) -> void:
 	var command := str(parts[0]).to_lower()
 	match command:
 		"/help":
-			_add_chat_line("Команды: /fly, /unfly, /help")
-			_add_chat_line("В полёте: джойстик — движение, ПРЫЖОК — вверх, БЕГ — вниз.")
+			_add_chat_line("Команды: /fly, /unfly, /flyspeed ЧИСЛО, /help")
+			_add_chat_line("Скорость полёта: 2–80. Джойстик — движение, ВВЕРХ/ВНИЗ — высота.")
 		"/fly":
 			if player != null:
 				player.call("set_flying", true)
@@ -345,6 +345,16 @@ func _execute_command(raw_command: String) -> void:
 			if player != null:
 				player.call("set_flying", false)
 				_add_chat_line("Режим полёта выключен.")
+		"/flyspeed":
+			if player == null:
+				_add_chat_line("Игрок не найден.")
+			elif parts.size() < 2:
+				_add_chat_line("Скорость полёта: %.1f. Используй /flyspeed 20 (2–80)." % float(player.get("flight_speed")))
+			elif not str(parts[1]).is_valid_float():
+				_add_chat_line("Укажи число. Пример: /flyspeed 25")
+			else:
+				var new_speed := float(player.call("set_flight_speed", float(parts[1])))
+				_add_chat_line("Скорость полёта установлена: %.1f." % new_speed)
 		_:
 			_add_chat_line("Неизвестная команда. Напиши /help.")
 
