@@ -106,8 +106,8 @@ func _draw_hud() -> void:
 		_draw_action_button(brake_button, 72.0 * ui_scale, "ТОРМОЗ", Color("#bd4e4b"))
 		_draw_action_button(handbrake_button, 63.0 * ui_scale, "РУЧНИК", Color("#bd8742"))
 	else:
-		_draw_action_button(jump_button, 66.0 * ui_scale, "ПРЫЖОК", Color("#398bc2"))
-		_draw_action_button(sprint_button, 54.0 * ui_scale, "БЕГ", Color("#269d72"))
+		_draw_action_button(jump_button, 66.0 * ui_scale, "ВВЕРХ" if (player != null and bool(player.get("flying"))) else "ПРЫЖОК", Color("#398bc2"))
+		_draw_action_button(sprint_button, 54.0 * ui_scale, "ВНИЗ" if (player != null and bool(player.get("flying"))) else "БЕГ", Color("#269d72"))
 	if vehicle != null and (driving_now or bool(vehicle.call("can_enter"))):
 		_draw_action_button(vehicle_button, 66.0 * ui_scale, "ВЫЙТИ" if driving_now else "АВТО", Color("#bd9148"))
 
