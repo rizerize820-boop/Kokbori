@@ -7,7 +7,7 @@ const VehicleScript = preload("res://scripts/vehicle.gd")
 var materials: Dictionary = {}
 var loading_layer: CanvasLayer
 
-const OSM_MAX_FILE_BYTES := 100000000
+const OSM_MAX_FILE_BYTES := 8000000
 
 func _ready() -> void:
 	_build_materials()
@@ -184,7 +184,7 @@ func _build_environment() -> void:
 	sun.shadow_bias = 0.035
 	sun.shadow_enabled = true
 	add_child(sun)
-	var ground_size := 16000.0 if FileAccess.file_exists("res://data/astana_osm.geojson") else 220.0
+	var ground_size := 520.0
 	# A continuous, thick physics floor sits exactly beneath the map surfaces.
 	var ground_body := _solid_box(self, Vector3(0, -1.0, 0), Vector3(ground_size, 2.0, ground_size), materials["grass"])
 	# Keep both player and vehicle ground collision layers active.
@@ -192,19 +192,19 @@ func _build_environment() -> void:
 
 func _build_street_grid() -> void:
 	# Secondary streets create a connected city grid around the central avenue.
-	for x in [-37.0, 37.0]:
-		_visual_box(self, Vector3(x, -0.012, 0), Vector3(7.0, 0.075, 150.0), materials["road"])
-		_visual_box(self, Vector3(x - 4.5, 0.055, 0), Vector3(1.5, 0.13, 150.0), materials["sidewalk"])
-		_visual_box(self, Vector3(x + 4.5, 0.055, 0), Vector3(1.5, 0.13, 150.0), materials["sidewalk"])
-	for z in [-40.0, 40.0]:
-		_visual_box(self, Vector3(0, -0.01, z), Vector3(150.0, 0.075, 7.0), materials["road"])
-		_visual_box(self, Vector3(0, 0.055, z - 4.5), Vector3(150.0, 0.13, 1.5), materials["sidewalk"])
-		_visual_box(self, Vector3(0, 0.055, z + 4.5), Vector3(150.0, 0.13, 1.5), materials["sidewalk"])
-	for x in [-37.0, 37.0]:
-		for z in range(-64, 65, 16):
+	for x in [-112.0, -75.0, -37.0, 37.0, 75.0, 112.0]:
+		_visual_box(self, Vector3(x, -0.012, 0), Vector3(7.0, 0.075, 260.0), materials["road"])
+		_visual_box(self, Vector3(x - 4.5, 0.055, 0), Vector3(1.5, 0.13, 260.0), materials["sidewalk"])
+		_visual_box(self, Vector3(x + 4.5, 0.055, 0), Vector3(1.5, 0.13, 260.0), materials["sidewalk"])
+	for z in [-120.0, -80.0, -40.0, 40.0, 80.0, 120.0]:
+		_visual_box(self, Vector3(0, -0.01, z), Vector3(260.0, 0.075, 7.0), materials["road"])
+		_visual_box(self, Vector3(0, 0.055, z - 4.5), Vector3(260.0, 0.13, 1.5), materials["sidewalk"])
+		_visual_box(self, Vector3(0, 0.055, z + 4.5), Vector3(260.0, 0.13, 1.5), materials["sidewalk"])
+	for x in [-112.0, -75.0, -37.0, 37.0, 75.0, 112.0]:
+		for z in range(-112, 113, 16):
 			_visual_box(self, Vector3(x, 0.035, float(z)), Vector3(0.12, 0.02, 2.4), materials["line"])
-	for z in [-40.0, 40.0]:
-		for x in range(-64, 65, 16):
+	for z in [-120.0, -80.0, -40.0, 40.0, 80.0, 120.0]:
+		for x in range(-112, 113, 16):
 			_visual_box(self, Vector3(float(x), 0.035, z), Vector3(2.4, 0.02, 0.12), materials["line"])
 
 func _build_city() -> void:
@@ -222,11 +222,11 @@ func _build_city() -> void:
 		_visual_box(self, Vector3(-5.0 + float(i) * 1.65, 0.065, 7.2), Vector3(0.95, 0.025, 2.2), materials["line"])
 		_visual_box(self, Vector3(-5.0 + float(i) * 1.65, 0.065, -7.2), Vector3(0.95, 0.025, 2.2), materials["line"])
 	# City blocks: restrained geometry and shared materials for mobile performance.
-	for row in range(5):
-		for col in range(5):
-			var x := -52.0 + float(col) * 25.0
-			var z := -55.0 + float(row) * 27.0
-			if abs(x) < 17.0 or abs(z) < 14.0:
+	for row in range(7):
+		for col in range(7):
+			var x := -77.0 + float(col) * 25.0
+			var z := -82.0 + float(row) * 27.0
+			if abs(x) < 20.0 or abs(z) < 16.0:
 				continue
 			var h := 12.0 + float((row * 7 + col * 3) % 5) * 4.0
 			var w := 11.0 + float((row + col) % 3) * 2.0
