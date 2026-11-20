@@ -1,8 +1,8 @@
 extends VehicleBody3D
 
 const MAX_SPEED_KMH := 140.0
-const MAX_ENGINE_FORCE := 900.0
-const MAX_REVERSE_FORCE := 420.0
+const MAX_ENGINE_FORCE := 4200.0
+const MAX_REVERSE_FORCE := 2400.0
 const MAX_BRAKE_FORCE := 55.0
 const HANDBRAKE_FORCE := 90.0
 const MAX_STEER_ANGLE := 0.45
@@ -20,7 +20,7 @@ var driver_mesh: Node3D
 func _ready() -> void:
 	name = "Toyota_Camry_55"
 	mass = 1250.0
-	linear_damp = 0.12
+	linear_damp = 0.05
 	angular_damp = 1.8
 	continuous_cd = true
 	can_sleep = false
@@ -41,8 +41,8 @@ func _build_chassis() -> void:
 	add_child(collision)
 
 func _build_wheels() -> void:
-	_add_wheel("FrontLeftWheel", Vector3(-0.79, -0.60, -1.34), true, false)
-	_add_wheel("FrontRightWheel", Vector3(0.79, -0.60, -1.34), true, false)
+	_add_wheel("FrontLeftWheel", Vector3(-0.79, -0.60, -1.34), true, true)
+	_add_wheel("FrontRightWheel", Vector3(0.79, -0.60, -1.34), true, true)
 	_add_wheel("RearLeftWheel", Vector3(-0.79, -0.60, 1.34), false, true)
 	_add_wheel("RearRightWheel", Vector3(0.79, -0.60, 1.34), false, true)
 
