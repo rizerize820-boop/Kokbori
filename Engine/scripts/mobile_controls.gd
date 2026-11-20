@@ -18,6 +18,11 @@ var screen_size := Vector2.ZERO
 var jump_button := Vector2.ZERO
 var sprint_button := Vector2.ZERO
 var sprinting := false
+var chat_toggle: Button
+var chat_panel: PanelContainer
+var chat_log: Label
+var chat_input: LineEdit
+var chat_history: Array[String] = []
 
 func _ready() -> void:
 	player = get_parent().get_node_or_null("Player") as Node3D
@@ -30,6 +35,7 @@ func _ready() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.draw.connect(_draw_hud)
 	add_child(hud)
+	_create_chat_ui()
 	_layout_controls()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
@@ -49,6 +55,10 @@ func _layout_controls() -> void:
 	handbrake_button = Vector2(screen_size.x - 145.0 * ui_scale, screen_size.y - 290.0 * ui_scale)
 	gas_button = Vector2(screen_size.x - 145.0 * ui_scale, screen_size.y - 150.0 * ui_scale)
 	brake_button = Vector2(screen_size.x - 310.0 * ui_scale, screen_size.y - 150.0 * ui_scale)
+	if is_instance_valid(chat_toggle):
+		chat_toggle.position = Vector2(20.0, 145.0)
+	if is_instance_valid(chat_panel):
+		chat_panel.position = Vector2(20.0, 195.0)
 
 func _draw_hud() -> void:
 	var font := ThemeDB.fallback_font
@@ -80,6 +90,7 @@ func _draw_hud() -> void:
 	hud.draw_circle(map_center, 7.0 * ui_scale, Color("#f3c66c"))
 	hud.draw_string(font, map_center + Vector2(-5.0, -map_radius - 7.0), "N", HORIZONTAL_ALIGNMENT_CENTER, 12.0, int(13 * ui_scale), Color("#f5f8fb"))
 
+	# Chat is a local in-game console until multiplayer networking is added.
 	# Left-side movement pad.
 	hud.draw_circle(pad_center, pad_radius + 13.0, Color(0.0, 0.0, 0.0, 0.24))
 	hud.draw_circle(pad_center, pad_radius, Color(0.025, 0.065, 0.095, 0.72))
@@ -193,12 +204,18 @@ func _begin_touch(index: int, pos: Vector2) -> void:
 	elif pos.distance_to(jump_button) <= 84.0:
 		touches[index] = "jump"
 		if player != null:
-			player.call("jump_now")
+			if bool(player.get("flying")):
+				player.call("set_flight_vertical", 1.0)
+			else:
+				player.call("jump_now")
 	elif pos.distance_to(sprint_button) <= 68.0:
 		touches[index] = "run"
 		sprinting = true
 		if player != null:
-			player.call("set_sprinting", true)
+			if bool(player.get("flying")):
+				player.call("set_flight_vertical", -1.0)
+			else:
+				player.call("set_sprinting", true)
 	elif pos.x > screen_size.x * 0.52 and pos.y < screen_size.y * 0.78 and not touches.values().has("look"):
 		touches[index] = "look"
 
@@ -209,10 +226,15 @@ func _end_touch(index: int) -> void:
 		stick_vector = Vector2.ZERO
 		_apply_movement(Vector2.ZERO)
 		hud.queue_redraw()
+	elif role == "jump" and player != null and bool(player.get("flying")):
+		player.call("set_flight_vertical", 0.0)
 	elif role == "run":
 		sprinting = false
 		if player != null:
-			player.call("set_sprinting", false)
+			if bool(player.get("flying")):
+				player.call("set_flight_vertical", 0.0)
+			else:
+				player.call("set_sprinting", false)
 	elif role == "gas":
 		gas_pressed = false
 		_update_vehicle_controls()
@@ -255,3 +277,79 @@ func _set_action(action_name: String, pressed: bool) -> void:
 		Input.action_press(action_name)
 	else:
 		Input.action_release(action_name)
+
+func _create_chat_ui() -> void:
+	chat_toggle = Button.new()
+	chat_toggle.text = "ЧАТ / КОМАНДЫ"
+	chat_toggle.position = Vector2(20.0, 145.0)
+	chat_toggle.size = Vector2(190.0, 42.0)
+	chat_toggle.pressed.connect(_toggle_chat)
+	hud.add_child(chat_toggle)
+
+	chat_panel = PanelContainer.new()
+	chat_panel.position = Vector2(20.0, 195.0)
+	chat_panel.size = Vector2(390.0, 205.0)
+	chat_panel.visible = false
+	hud.add_child(chat_panel)
+
+	var layout := VBoxContainer.new()
+	chat_panel.add_child(layout)
+	chat_log = Label.new()
+	chat_log.text = "Локальный чат KOKBORI. Введи /help для списка команд."
+	chat_log.custom_minimum_size = Vector2(360.0, 125.0)
+	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(chat_log)
+
+	chat_input = LineEdit.new()
+	chat_input.placeholder_text = "Сообщение или команда..."
+	chat_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chat_input.text_submitted.connect(_submit_chat)
+	layout.add_child(chat_input)
+
+	var send_button := Button.new()
+	send_button.text = "ОТПРАВИТЬ"
+	send_button.pressed.connect(func(): _submit_chat(chat_input.text))
+	layout.add_child(send_button)
+
+func _toggle_chat() -> void:
+	chat_panel.visible = not chat_panel.visible
+	if chat_panel.visible:
+		chat_input.grab_focus()
+	else:
+		chat_input.release_focus()
+
+func _submit_chat(raw_text: String) -> void:
+	var message := raw_text.strip_edges()
+	if message.is_empty():
+		return
+	chat_input.clear()
+	if message.begins_with("/"):
+		_execute_command(message)
+	else:
+		_add_chat_line("Ты: " + message)
+
+func _execute_command(raw_command: String) -> void:
+	var parts := raw_command.split(" ", false, 1)
+	var command := str(parts[0]).to_lower()
+	match command:
+		"/help":
+			_add_chat_line("Команды: /fly, /unfly, /help")
+			_add_chat_line("В полёте: джойстик — движение, ПРЫЖОК — вверх, БЕГ — вниз.")
+		"/fly":
+			if player != null:
+				player.call("set_flying", true)
+				_add_chat_line("Режим полёта включён.")
+			else:
+				_add_chat_line("Игрок не найден.")
+		"/unfly":
+			if player != null:
+				player.call("set_flying", false)
+				_add_chat_line("Режим полёта выключен.")
+		_:
+			_add_chat_line("Неизвестная команда. Напиши /help.")
+
+func _add_chat_line(line: String) -> void:
+	chat_history.append(line)
+	while chat_history.size() > 6:
+		chat_history.pop_front()
+	chat_log.text = "\n".join(chat_history)
