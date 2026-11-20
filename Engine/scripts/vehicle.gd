@@ -64,43 +64,10 @@ func _add_wheel(wheel_name: String, wheel_position: Vector3, steering_wheel: boo
 	add_child(wheel)
 
 func _build_visual() -> void:
-	var model_resource := load("res://assets/vehicles/admiral.glb")
-	if model_resource is PackedScene:
-		var model := (model_resource as PackedScene).instantiate()
-		model.name = "Camry_55_Model"
-		add_child(model)
-		_fit_model_to_wheels.call_deferred(model)
-	else:
-		push_warning("Could not load vehicle model; using fallback body.")
-		_add_box("Fallback body", Vector3(0, -0.02, 0), Vector3(1.9, 0.65, 4.2), Color("#202832"))
-		_add_box("Fallback roof", Vector3(0, 0.72, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
-
-func _fit_model_to_wheels(model: Node3D) -> void:
-	if not is_instance_valid(model):
-		return
-	var found_mesh := false
-	var bounds := AABB()
-	for node in model.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := node as MeshInstance3D
-		if mesh_instance.mesh == null:
-			continue
-		var mesh_bounds := mesh_instance.get_aabb()
-		var relative_transform := model.global_transform.affine_inverse() * mesh_instance.global_transform
-		for corner_index in range(8):
-			var point := relative_transform * mesh_bounds.get_endpoint(corner_index)
-			if not found_mesh:
-				bounds = AABB(point, Vector3.ZERO)
-				found_mesh = true
-			else:
-				bounds = bounds.expand(point)
-	if found_mesh:
-		# Lift the rendered body slightly above the wheel contact plane so it
-		# does not visually clip into the road after suspension settles.
-		# Keep the visible car body above the road. The previous offset placed
-		# the imported mesh too low relative to the VehicleBody suspension origin.
-		model.position.y = -0.48 - bounds.position.y
-	else:
-		push_warning("Vehicle model has no MeshInstance3D nodes; visual fitting skipped.")
+	# Temporary diagnostic body: the imported GLB is intentionally disabled.
+	# Chassis collision and VehicleWheel3D nodes remain unchanged.
+	_add_box("Debug body", Vector3(0.0, -0.02, 0.0), Vector3(1.9, 0.65, 4.2), Color("#202832"))
+	_add_box("Debug roof", Vector3(0.0, 0.72, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
 
 func _mat(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
