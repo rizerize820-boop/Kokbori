@@ -169,6 +169,13 @@ func set_controls(gas: float, turn: float) -> void:
 func set_handbrake(pressed: bool) -> void:
 	handbrake = pressed
 
+func get_wheel_contact_count() -> int:
+	var contacts := 0
+	for child in get_children():
+		if child is VehicleWheel3D and child.is_in_contact():
+			contacts += 1
+	return contacts
+
 func get_speed_kmh() -> int:
 	var forward_speed := linear_velocity.dot(-global_transform.basis.z)
 	return int(round(absf(forward_speed) * 3.6))
