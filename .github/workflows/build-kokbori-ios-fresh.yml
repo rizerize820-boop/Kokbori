@@ -66,15 +66,24 @@ jobs:
           rm -rf Engine/build
           mkdir -p Engine/build
           "$GODOT" --headless --path Engine --export-debug "iOS" Engine/build/KOKBORI-RP
-          test -d Engine/build/KOKBORI-RP.xcodeproj
-          find Engine/build -maxdepth 3 -type f -print
+          echo "Exported files:"
+          find Engine/build -maxdepth 5 -print
+          PROJECT="$(find Engine/build -maxdepth 5 -type d -name '*.xcodeproj' -print -quit)"
+          if [ -z "$PROJECT" ]; then
+            echo "ERROR: Godot did not produce an Xcode project."
+            find Engine/build -maxdepth 5 -type f -print
+            exit 1
+          fi
+          echo "XCODE_PROJECT=$PROJECT" >> "$GITHUB_ENV"
 
       - name: Compile iPhone app and package uniquely named IPA
         shell: bash
         run: |
           set -euo pipefail
-          PROJECT="Engine/build/KOKBORI-RP.xcodeproj"
-          SCHEME="$(xcodebuild -list -json -project "$PROJECT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["project"]["schemes"][0])')"
+          PROJECT="$XCODE_PROJECT"
+          echo "Using Xcode project: $PROJECT"
+          xcodebuild -list -json -project "$PROJECT"
+          SCHEME="$(xcodebuild -list -json -project "$PROJECT" | python3 -c 'import json,sys; schemes=json.load(sys.stdin)["project"]["schemes"]; assert schemes, "No Xcode schemes found"; print(schemes[0])')"
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphoneos -configuration Release -derivedDataPath "$RUNNER_TEMP/KOKBORI-DerivedData" CODE_SIGNING_ALLOWED=NO
           APP="$(find "$RUNNER_TEMP/KOKBORI-DerivedData/Build/Products" -maxdepth 4 -name '*.app' -print -quit)"
           test -n "$APP"
