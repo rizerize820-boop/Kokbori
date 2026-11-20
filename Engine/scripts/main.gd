@@ -618,6 +618,19 @@ func _add_osm_building(ring: Array, properties: Dictionary) -> void:
 			roof.set_color(roof_color)
 			roof.add_vertex(Vector3(p.x, height, p.y))
 
+	# A slim raised roof rim breaks up the flat, block-like silhouette.
+	var roof_trim: SurfaceTool = _osm_surfaces["facade_trim"]
+	for i in range(points.size()):
+		var a := points[i]
+		var b := points[(i + 1) % points.size()]
+		var inner_a := a.lerp(footprint_center, 0.94)
+		var inner_b := b.lerp(footprint_center, 0.94)
+		_add_osm_quad(roof_trim,
+			Vector3(a.x, height + 0.035, a.y),
+			Vector3(b.x, height + 0.035, b.y),
+			Vector3(inner_b.x, height + 0.035, inner_b.y),
+			Vector3(inner_a.x, height + 0.035, inner_a.y))
+
 	# Add repeated, scale-aware facade windows and floor bands to OSM buildings.
 	# Geometry is batched into shared meshes to keep draw calls low on iPhone.
 	var center := Vector2.ZERO
@@ -736,6 +749,20 @@ func _add_osm_line(coords: Array, kind: String, properties: Dictionary) -> void:
 		var p2 := Vector3(a.x - side.x, 0.065, a.z - side.y)
 		var p3 := Vector3(b.x - side.x, 0.065, b.z - side.y)
 		var p4 := Vector3(b.x + side.x, 0.065, b.z + side.y)
+		# Raised pedestrian strips alongside larger streets add readable sidewalks
+		# instead of leaving roads as isolated flat ribbons.
+		if kind == "road" and highway in ["motorway", "trunk", "primary", "secondary", "tertiary", "residential", "living_street"]:
+			var sidewalk_width := 1.35
+			for side_sign in [-1.0, 1.0]:
+				var outer_a := a + Vector3(side.x, 0.0, side.y) * (1.0 + sidewalk_width / maxf(width * 0.5, 0.5)) * side_sign
+				var outer_b := b + Vector3(side.x, 0.0, side.y) * (1.0 + sidewalk_width / maxf(width * 0.5, 0.5)) * side_sign
+				var inner_a := a + Vector3(side.x, 0.0, side.y) * side_sign
+				var inner_b := b + Vector3(side.x, 0.0, side.y) * side_sign
+				_add_osm_quad(_osm_surfaces["paths"],
+					Vector3(inner_a.x, 0.045, inner_a.z),
+					Vector3(outer_a.x, 0.045, outer_a.z),
+					Vector3(outer_b.x, 0.045, outer_b.z),
+					Vector3(inner_b.x, 0.045, inner_b.z))
 		surface.add_vertex(p1)
 		surface.add_vertex(p2)
 		surface.add_vertex(p3)
