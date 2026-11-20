@@ -53,8 +53,12 @@ func _ready() -> void:
 
 func _on_viewport_resized() -> void:
 	screen_size = get_viewport().get_visible_rect().size
+	if is_instance_valid(hud):
+		hud.position = Vector2.ZERO
+		hud.size = screen_size
 	_layout_controls()
-	hud.queue_redraw()
+	if is_instance_valid(hud):
+		hud.queue_redraw()
 
 func _layout_controls() -> void:
 	var short_side := minf(screen_size.x, screen_size.y)
