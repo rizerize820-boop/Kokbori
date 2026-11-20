@@ -200,14 +200,14 @@ func _build_environment() -> void:
 	env.fog_light_color = Color("#b8c5ce")
 	env.fog_density = 0.00038
 	env.glow_enabled = true
-	env.glow_intensity = 0.28
-	env.glow_strength = 0.55
+	env.glow_intensity = 0.18
+	env.glow_strength = 0.42
 	world.environment = env
 	add_child(world)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
 	sun.light_energy = 1.3
-	sun.directional_shadow_max_distance = 180.0
+	sun.directional_shadow_max_distance = 125.0
 	sun.shadow_bias = 0.035
 	sun.shadow_enabled = true
 	add_child(sun)
@@ -275,6 +275,7 @@ func _build_city() -> void:
 		for z in range(-72, 73, 18):
 			_add_tree(Vector3(side * 13.2, 0, float(z)))
 			_add_lamp(Vector3(side * 9.0, 0, float(z) + 5.0))
+	_add_city_furniture()
 	# Astana-inspired river and embankment.
 	_visual_box(self, Vector3(-76, -0.015, 0), Vector3(15, 0.08, 180), materials["water"])
 	_visual_box(self, Vector3(-67.5, 0.08, 0), Vector3(1.0, 0.3, 180), materials["trim"])
@@ -472,24 +473,27 @@ func _add_building_details(parent: Node3D, width: float, height: float, row: int
 func _add_tree(pos: Vector3) -> void:
 	var tree := Node3D.new()
 	tree.position = pos
+	var variant := int(absf(pos.z)) % 3
+	tree.scale = Vector3.ONE * (0.88 + float(variant) * 0.12)
 	add_child(tree)
 	var trunk := MeshInstance3D.new()
 	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.16
-	trunk_mesh.bottom_radius = 0.24
-	trunk_mesh.height = 2.2
+	trunk_mesh.top_radius = 0.14
+	trunk_mesh.bottom_radius = 0.22
+	trunk_mesh.height = 2.35
 	trunk.mesh = trunk_mesh
-	trunk.position.y = 1.1
+	trunk.position.y = 1.17
 	trunk.material_override = materials["trunk"]
 	tree.add_child(trunk)
-	var crown := MeshInstance3D.new()
-	var crown_mesh := SphereMesh.new()
-	crown_mesh.radius = 1.35
-	crown_mesh.height = 2.4
-	crown.mesh = crown_mesh
-	crown.position.y = 2.8
-	crown.material_override = materials["tree"]
-	tree.add_child(crown)
+	for cluster in range(3):
+		var crown := MeshInstance3D.new()
+		var crown_mesh := SphereMesh.new()
+		crown_mesh.radius = 1.05 if cluster == 0 else 0.82
+		crown_mesh.height = 1.9 if cluster == 0 else 1.55
+		crown.mesh = crown_mesh
+		crown.position = Vector3(float(cluster - 1) * 0.62, 2.7 + (0.35 if cluster == 0 else 0.0), 0.0)
+		crown.material_override = materials["tree"]
+		tree.add_child(crown)
 
 func _add_lamp(pos: Vector3) -> void:
 	var lamp := Node3D.new()
@@ -497,6 +501,61 @@ func _add_lamp(pos: Vector3) -> void:
 	add_child(lamp)
 	_visual_box(lamp, Vector3(0, 2.4, 0), Vector3(0.12, 4.8, 0.12), materials["trim"])
 	_visual_box(lamp, Vector3(0, 4.75, -0.45), Vector3(0.85, 0.12, 0.18), materials["gold"])
+	var bulb_material := _material(Color("#fff0c2"))
+	bulb_material.emission_enabled = true
+	bulb_material.emission = Color("#ffe2a0")
+	bulb_material.emission_energy_multiplier = 1.4
+	_visual_box(lamp, Vector3(0, 4.62, -0.45), Vector3(0.42, 0.10, 0.32), bulb_material)
+
+func _add_city_furniture() -> void:
+	# Benches and bins along the landscaped pedestrian strip.
+	for side in [-1.0, 1.0]:
+		for z in [-58.0, -22.0, 22.0, 58.0]:
+			var bench := Node3D.new()
+			bench.position = Vector3(side * 13.2, 0.0, z)
+			add_child(bench)
+			_visual_box(bench, Vector3(0.0, 0.52, 0.0), Vector3(1.65, 0.12, 0.48), materials["trunk"])
+			_visual_box(bench, Vector3(0.0, 0.88, 0.20), Vector3(1.65, 0.62, 0.12), materials["trunk"])
+			for leg_x in [-0.62, 0.62]:
+				_visual_box(bench, Vector3(leg_x, 0.25, 0.0), Vector3(0.10, 0.50, 0.34), materials["trim"])
+			var bin := Node3D.new()
+			bin.position = Vector3(side * 14.1, 0.0, z + 2.0)
+			add_child(bin)
+			_visual_box(bin, Vector3.ZERO, Vector3(0.42, 0.72, 0.42), materials["facade_trim"])
+			_visual_box(bin, Vector3(0.0, 0.39, 0.0), Vector3(0.48, 0.08, 0.48), materials["trim"])
+	# Traffic signals at the two marked pedestrian crossings.
+	for z in [-8.7, 8.7]:
+		for side in [-1.0, 1.0]:
+			var signal := Node3D.new()
+			signal.position = Vector3(side * 8.4, 0.0, z)
+			add_child(signal)
+			_visual_box(signal, Vector3(0.0, 2.3, 0.0), Vector3(0.12, 4.6, 0.12), materials["trim"])
+			_visual_box(signal, Vector3(0.0, 4.45, 0.0), Vector3(0.62, 1.25, 0.30), materials["road"])
+			var signal_colors := [Color("#e74c4c"), Color("#edb94b"), Color("#55bd78")]
+			for light_index in range(3):
+				var lamp_material := _material(signal_colors[light_index])
+				lamp_material.emission_enabled = true
+				lamp_material.emission = signal_colors[light_index]
+				lamp_material.emission_energy_multiplier = 0.45
+				var lamp_mesh := SphereMesh.new()
+				lamp_mesh.radius = 0.13
+				lamp_mesh.height = 0.26
+				var lamp_instance := MeshInstance3D.new()
+				lamp_instance.mesh = lamp_mesh
+				lamp_instance.material_override = lamp_material
+				lamp_instance.position = Vector3(0.0, 4.82 - float(light_index) * 0.38, -0.17)
+				signal.add_child(lamp_instance)
+	# Glass bus shelters and benches make the sidewalks feel occupied.
+	for side in [-1.0, 1.0]:
+		var shelter := Node3D.new()
+		shelter.position = Vector3(side * 16.0, 0.0, 40.0)
+		add_child(shelter)
+		_visual_box(shelter, Vector3(0.0, 2.35, 0.0), Vector3(4.2, 0.16, 1.75), materials["trim"])
+		_visual_box(shelter, Vector3(-1.95, 1.15, 0.0), Vector3(0.12, 2.3, 1.65), materials["glass"])
+		_visual_box(shelter, Vector3(1.95, 1.15, 0.0), Vector3(0.12, 2.3, 1.65), materials["glass"])
+		_visual_box(shelter, Vector3(0.0, 1.15, -0.78), Vector3(3.8, 2.3, 0.10), materials["glass"])
+		_visual_box(shelter, Vector3(0.0, 0.48, 0.25), Vector3(2.8, 0.12, 0.48), materials["trunk"])
+
 
 # OpenStreetMap coordinates are projected locally around central Astana.
 const OSM_ORIGIN_LON := 71.4305
