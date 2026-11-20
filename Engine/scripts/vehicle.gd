@@ -96,7 +96,9 @@ func _fit_model_to_wheels(model: Node3D) -> void:
 	if found_mesh:
 		# Lift the rendered body slightly above the wheel contact plane so it
 		# does not visually clip into the road after suspension settles.
-		model.position.y = -0.91 - bounds.position.y
+		# Keep the visible car body above the road. The previous offset placed
+		# the imported mesh too low relative to the VehicleBody suspension origin.
+		model.position.y = -0.48 - bounds.position.y
 	else:
 		push_warning("Vehicle model has no MeshInstance3D nodes; visual fitting skipped.")
 
