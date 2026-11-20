@@ -268,6 +268,7 @@ func _build_city() -> void:
 			_solid_box(building, Vector3(0, h * 0.5, 0), Vector3(w, h, 10), mat)
 			_visual_box(building, Vector3(0, h + 0.18, 0), Vector3(w + 0.35, 0.35, 10.35), materials["trim"])
 			_add_windows(building, w, h)
+			_add_building_details(building, w, h, row, col)
 	# Green strips, trees and street lamps along the main avenue.
 	for side in [-1.0, 1.0]:
 		_visual_box(self, Vector3(side * 13.2, 0.015, 0), Vector3(1.0, 0.06, 180), materials["grass"])
@@ -446,6 +447,27 @@ func _add_windows(parent: Node3D, width: float, height: float) -> void:
 	windows.multimesh = multi
 	windows.material_override = materials["glass"]
 	parent.add_child(windows)
+
+func _add_building_details(parent: Node3D, width: float, height: float, row: int, col: int) -> void:
+	# Shallow balconies, parapets and rooftop units add depth while keeping
+	# geometry simple enough for mobile rendering.
+	_visual_box(parent, Vector3(0.0, 0.55, 0.0), Vector3(width + 0.45, 1.1, 10.45), materials["facade_trim"])
+	var floor_count := mini(4, int(floor(height / 4.0)))
+	for floor_index in range(1, floor_count + 1):
+		var y := minf(float(floor_index) * 3.4, height - 1.4)
+		if floor_index % 2 == (row + col) % 2:
+			for side in [-1.0, 1.0]:
+				_visual_box(parent, Vector3(0.0, y, side * 5.22), Vector3(width * 0.72, 0.12, 0.62), materials["trim"])
+				_visual_box(parent, Vector3(0.0, y + 0.48, side * 5.50), Vector3(width * 0.68, 0.08, 0.08), materials["gold"])
+				for rail_x in [-width * 0.32, 0.0, width * 0.32]:
+					_visual_box(parent, Vector3(rail_x, y + 0.24, side * 5.50), Vector3(0.055, 0.42, 0.055), materials["trim"])
+	_visual_box(parent, Vector3(0.0, height + 0.52, -5.0), Vector3(width + 0.45, 0.72, 0.22), materials["facade_trim"])
+	_visual_box(parent, Vector3(0.0, height + 0.52, 5.0), Vector3(width + 0.45, 0.72, 0.22), materials["facade_trim"])
+	_visual_box(parent, Vector3(-width * 0.5, height + 0.52, 0.0), Vector3(0.22, 0.72, 10.0), materials["facade_trim"])
+	_visual_box(parent, Vector3(width * 0.5, height + 0.52, 0.0), Vector3(0.22, 0.72, 10.0), materials["facade_trim"])
+	_visual_box(parent, Vector3(width * 0.22, height + 1.05, 0.0), Vector3(width * 0.28, 1.05, 2.0), materials["building_b"])
+	_visual_box(parent, Vector3(-width * 0.20, height + 0.72, 1.0), Vector3(1.8, 0.4, 1.6), materials["trim"])
+
 
 func _add_tree(pos: Vector3) -> void:
 	var tree := Node3D.new()
