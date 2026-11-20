@@ -7,6 +7,8 @@ var camera_pivot: Node3D
 var camera: Camera3D
 var sprinting := false
 var jump_requested := false
+var flying := false
+var flight_vertical_input := 0.0
 
 func _ready() -> void:
 	name = "Player"
@@ -39,12 +41,11 @@ func _ready() -> void:
 	arm.margin = 0.2
 	camera_pivot.add_child(arm)
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 0, 0)
+	camera.position = Vector3.ZERO
 	arm.add_child(camera)
 	camera.current = true
 
 func _physics_process(delta: float) -> void:
-	# Recover safely if the character ever leaves the playable map or falls below the floor.
 	if global_position.y < -5.0:
 		global_position = Vector3(global_position.x, 1.0, global_position.z)
 		velocity = Vector3.ZERO
@@ -61,19 +62,22 @@ func _physics_process(delta: float) -> void:
 	var target := direction * current_speed
 	velocity.x = move_toward(velocity.x, target.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target.z, acceleration * delta)
-	if not is_on_floor():
-		velocity.y -= gravity * delta
+
+	if flying:
+		var keyboard_vertical := Input.get_action_strength("ui_accept") - Input.get_action_strength("ui_down")
+		var vertical := flight_vertical_input if absf(flight_vertical_input) > 0.01 else keyboard_vertical
+		velocity.y = move_toward(velocity.y, vertical * 6.0, acceleration * delta)
 	else:
-		velocity.y = 0.0
-		if jump_requested:
-			velocity.y = 6.2
+		if not is_on_floor():
+			velocity.y -= gravity * delta
+		else:
+			velocity.y = 0.0
+			if jump_requested:
+				velocity.y = 6.2
 	jump_requested = false
-	# Keep the player root fixed: rotating it also rotates its child camera pivot.
-	# Camera yaw is controlled exclusively by apply_look(), never by joystick movement.
 	move_and_slide()
 
 func apply_look(screen_delta: Vector2) -> void:
-	# Dragging on the right half of the touchscreen rotates the camera.
 	camera_pivot.rotation.y -= screen_delta.x * 0.006
 	camera_pivot.rotation.x = clampf(
 		camera_pivot.rotation.x - screen_delta.y * 0.0045,
@@ -82,7 +86,17 @@ func apply_look(screen_delta: Vector2) -> void:
 	)
 
 func jump_now() -> void:
-	jump_requested = true
+	if not flying:
+		jump_requested = true
 
 func set_sprinting(enabled: bool) -> void:
 	sprinting = enabled
+
+func set_flying(enabled: bool) -> void:
+	flying = enabled
+	flight_vertical_input = 0.0
+	if not flying and velocity.y > 0.0:
+		velocity.y = 0.0
+
+func set_flight_vertical(direction: float) -> void:
+	flight_vertical_input = clampf(direction, -1.0, 1.0) if flying else 0.0
