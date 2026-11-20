@@ -47,6 +47,9 @@ func _ready() -> void:
 	_show_loading_screen("ЗАГРУЗКА ГОРОДА АСТАНЫ...")
 	await get_tree().process_frame
 
+	# Temporarily use the optimized procedural Astana scene on iOS. The full-city
+	# GeoJSON parser can stall startup on mobile devices; re-enable OSM only after
+	# it is moved to chunked background loading.
 	var use_osm := false
 	var map_path := "res://data/astana_osm.geojson"
 	if FileAccess.file_exists(map_path):
