@@ -91,17 +91,17 @@ func _hide_loading_screen() -> void:
 	loading_layer = null
 
 func _build_materials() -> void:
-	materials["road"] = _material(Color("#252c35"))
+	materials["road"] = _material(Color("#303943"))
 	(materials["road"] as StandardMaterial3D).roughness = 0.94
-	materials["sidewalk"] = _material(Color("#aeb8b6"))
+	materials["sidewalk"] = _material(Color("#c2c6c2"))
 	materials["line"] = _material(Color("#e7dfbd"))
 	materials["road_mark"] = _material(Color("#e8dfc4"))
 	materials["road_edge"] = _material(Color("#b9c0bd"))
 	materials["grass"] = _material(Color("#526a58"))
-	materials["building_a"] = _material(Color("#c0c5c7"))
-	materials["building_b"] = _material(Color("#aab7c0"))
-	materials["building_c"] = _material(Color("#c9bda9"))
-	materials["window_glass"] = _material(Color("#243f55"))
+	materials["building_a"] = _material(Color("#b9c2c8"))
+	materials["building_b"] = _material(Color("#9eafb9"))
+	materials["building_c"] = _material(Color("#c7bba8"))
+	materials["window_glass"] = _material(Color("#18364d"))
 	(materials["window_glass"] as StandardMaterial3D).roughness = 0.22
 	(materials["window_glass"] as StandardMaterial3D).metallic = 0.24
 	materials["facade_trim"] = _material(Color("#d6d4ca"))
@@ -453,9 +453,9 @@ func _add_lamp(pos: Vector3) -> void:
 const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
-const OSM_MAX_FEATURES := 50000
+const OSM_MAX_FEATURES := 65000
 const OSM_RENDER_RADIUS := 8500.0
-const OSM_FACADE_RADIUS := 2500.0
+const OSM_FACADE_RADIUS := 4200.0
 const OSM_COLLISION_RADIUS := 8500.0
 var _osm_surfaces: Dictionary = {}
 
