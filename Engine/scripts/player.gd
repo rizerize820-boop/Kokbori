@@ -15,6 +15,7 @@ var right_arm_pivot: Node3D
 var left_leg_pivot: Node3D
 var right_leg_pivot: Node3D
 var animation_clock := 0.0
+var visual_root: Node3D
 const MIN_FLIGHT_SPEED := 2.0
 const MAX_FLIGHT_SPEED := 80.0
 
@@ -46,6 +47,9 @@ func _ready() -> void:
 
 
 func _build_character_visual() -> void:
+	visual_root = Node3D.new()
+	visual_root.name = "CharacterVisuals"
+	add_child(visual_root)
 	var skin := StandardMaterial3D.new()
 	skin.albedo_color = Color("#c58f70")
 	skin.roughness = 0.82
@@ -66,7 +70,7 @@ func _build_character_visual() -> void:
 	torso.mesh = torso_mesh
 	torso.position = Vector3(0.0, 1.13, 0.0)
 	torso.material_override = jacket
-	add_child(torso)
+	visual_root.add_child(torso)
 
 	var head := MeshInstance3D.new()
 	var head_mesh := SphereMesh.new()
@@ -75,7 +79,7 @@ func _build_character_visual() -> void:
 	head.mesh = head_mesh
 	head.position = Vector3(0.0, 1.78, 0.0)
 	head.material_override = skin
-	add_child(head)
+	visual_root.add_child(head)
 
 	var hair := MeshInstance3D.new()
 	var hair_mesh := SphereMesh.new()
@@ -86,7 +90,7 @@ func _build_character_visual() -> void:
 	var hair_material := StandardMaterial3D.new()
 	hair_material.albedo_color = Color("#242329")
 	hair.material_override = hair_material
-	add_child(hair)
+	visual_root.add_child(hair)
 
 	left_arm_pivot = _make_limb_pivot("LeftArm", Vector3(-0.34, 1.43, 0.0), 0.13, 0.62, jacket)
 	right_arm_pivot = _make_limb_pivot("RightArm", Vector3(0.34, 1.43, 0.0), 0.13, 0.62, jacket)
@@ -99,13 +103,13 @@ func _build_character_visual() -> void:
 		shoe.mesh = shoe_mesh
 		shoe.position = Vector3(side * 0.16, 0.10, -0.07)
 		shoe.material_override = shoes
-		add_child(shoe)
+		visual_root.add_child(shoe)
 
 func _make_limb_pivot(limb_name: String, pivot_position: Vector3, radius: float, length: float, material: Material) -> Node3D:
 	var pivot := Node3D.new()
 	pivot.name = limb_name
 	pivot.position = pivot_position
-	add_child(pivot)
+	visual_root.add_child(pivot)
 	var limb := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
 	capsule.radius = radius
