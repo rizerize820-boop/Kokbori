@@ -1,0 +1,108 @@
+name: KOKBORI RP - Fresh iPhone Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Engine/**"
+      - ".github/workflows/build-kokbori-ios-fresh.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kokbori-fresh-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fresh-ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact game revision
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Show source revision and changed game files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_COMMIT=$GITHUB_SHA"
+          git status --short
+          git log -1 --oneline
+          test -s Engine/scripts/main.gd
+          test -s Engine/scripts/player.gd
+          test -s Engine/scripts/vehicle.gd
+          test -s Engine/scripts/mobile_controls.gd
+          shasum -a 256 Engine/scripts/*.gd
+
+      - name: Install Godot 4.3 and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot" "$HOME/Library/Application Support/Godot/export_templates/4.3.stable"
+          curl -L --fail --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_macos.universal.zip -o "$RUNNER_TEMP/godot/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          sudo ditto "$RUNNER_TEMP/godot/Godot.app" /Applications/Godot.app
+          curl -L --fail --retry 3 https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -o "$RUNNER_TEMP/godot/templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/Library/Application Support/Godot/export_templates/4.3.stable/"
+
+      - name: Import project and validate scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
+          "$GODOT" --headless --editor --path Engine --quit
+          "$GODOT" --headless --path Engine --quit-after 3
+
+      - name: Export fresh iOS Xcode project
+        shell: bash
+        run: |
+          set -euo pipefail
+          GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
+          rm -rf Engine/build
+          mkdir -p Engine/build
+          "$GODOT" --headless --path Engine --export-debug "iOS" Engine/build/KOKBORI-RP
+          test -d Engine/build/KOKBORI-RP.xcodeproj
+          find Engine/build -maxdepth 3 -type f -print
+
+      - name: Compile iPhone app and package uniquely named IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT="Engine/build/KOKBORI-RP.xcodeproj"
+          SCHEME="$(xcodebuild -list -json -project "$PROJECT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["project"]["schemes"][0])')"
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -sdk iphoneos -configuration Release -derivedDataPath "$RUNNER_TEMP/KOKBORI-DerivedData" CODE_SIGNING_ALLOWED=NO
+          APP="$(find "$RUNNER_TEMP/KOKBORI-DerivedData/Build/Products" -maxdepth 4 -name '*.app' -print -quit)"
+          test -n "$APP"
+          test -d "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -qx 'com.kokbori.rp'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist"
+          mkdir -p Payload
+          cp -R "$APP" Payload/KOKBORI-RP.app
+          IPA="KOKBORI-RP-iOS-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}.ipa"
+          /usr/bin/zip -qry "$IPA" Payload
+          test -s "$IPA"
+          SIZE="$(stat -f%z "$IPA")"
+          echo "IPA_FILE=$IPA" >> "$GITHUB_ENV"
+          echo "IPA_SIZE=$SIZE" >> "$GITHUB_ENV"
+          shasum -a 256 "$IPA" | tee ipa-sha256.txt
+          printf 'Commit: %s\nRun: %s\nIPA: %s\nSize bytes: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" "$IPA" "$SIZE" > BUILD-INFO.txt
+          cat BUILD-INFO.txt
+          test "$SIZE" -gt 1000000
+
+      - name: Upload fresh IPA with build-specific artifact name
+        uses: actions/upload-artifact@v4
+        with:
+          name: KOKBORI-RP-iOS-${{ github.run_number }}-${{ github.sha }}
+          path: |
+            ${{ env.IPA_FILE }}
+            BUILD-INFO.txt
+            ipa-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
