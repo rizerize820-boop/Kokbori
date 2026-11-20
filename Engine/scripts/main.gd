@@ -7,7 +7,7 @@ const VehicleScript = preload("res://scripts/vehicle.gd")
 var materials: Dictionary = {}
 var loading_layer: CanvasLayer
 
-const OSM_MAX_FILE_BYTES := 8000000
+const OSM_MAX_FILE_BYTES := 64000000
 
 func _ready() -> void:
 	_build_materials()
@@ -39,8 +39,9 @@ func _ready() -> void:
 		if map_file != null:
 			var map_size := map_file.get_length()
 			map_file.close()
-			# Parsing a very large GeoJSON synchronously can freeze mobile/Web
-			# clients before the first frame. Use the lightweight city instead.
+			# The current full-city Astana snapshot is larger than the old central-area limit.
+			# Keep a generous cap for the 2026 city extract; parsing is followed by
+			# incremental feature processing below.
 			use_osm = map_size > 0 and map_size <= OSM_MAX_FILE_BYTES
 			if not use_osm:
 				push_warning("Astana GeoJSON is too large for safe startup; using optimized city.")
@@ -184,7 +185,7 @@ func _build_environment() -> void:
 	sun.shadow_bias = 0.035
 	sun.shadow_enabled = true
 	add_child(sun)
-	var ground_size := 520.0
+	var ground_size := 82000.0
 	# A continuous, thick physics floor sits exactly beneath the map surfaces.
 	var ground_body := _solid_box(self, Vector3(0, -1.0, 0), Vector3(ground_size, 2.0, ground_size), materials["grass"])
 	# Keep both player and vehicle ground collision layers active.
@@ -453,10 +454,12 @@ func _add_lamp(pos: Vector3) -> void:
 const OSM_ORIGIN_LON := 71.4305
 const OSM_ORIGIN_LAT := 51.1283
 const OSM_LAT_METERS := 111320.0
-const OSM_MAX_FEATURES := 65000
-const OSM_RENDER_RADIUS := 8500.0
-const OSM_FACADE_RADIUS := 4200.0
-const OSM_COLLISION_RADIUS := 8500.0
+const OSM_MAX_FEATURES := 100000
+# The OSM snapshot covers roughly 40 x 55 km; include its outer districts.
+const OSM_RENDER_RADIUS := 40000.0
+# Keep expensive facade details and physics colliders close to the player start.
+const OSM_FACADE_RADIUS := 7000.0
+const OSM_COLLISION_RADIUS := 5000.0
 var _osm_surfaces: Dictionary = {}
 
 func _osm_point(coord: Array) -> Vector3:
