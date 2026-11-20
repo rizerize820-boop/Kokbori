@@ -523,19 +523,19 @@ func _add_city_furniture() -> void:
 			add_child(bin)
 			_visual_box(bin, Vector3.ZERO, Vector3(0.42, 0.72, 0.42), materials["facade_trim"])
 			_visual_box(bin, Vector3(0.0, 0.39, 0.0), Vector3(0.48, 0.08, 0.48), materials["trim"])
-	# Traffic signals at the two marked pedestrian crossings.
+	# Traffic signal_poles at the two marked pedestrian crossings.
 	for z in [-8.7, 8.7]:
 		for side in [-1.0, 1.0]:
-			var signal := Node3D.new()
-			signal.position = Vector3(side * 8.4, 0.0, z)
-			add_child(signal)
-			_visual_box(signal, Vector3(0.0, 2.3, 0.0), Vector3(0.12, 4.6, 0.12), materials["trim"])
-			_visual_box(signal, Vector3(0.0, 4.45, 0.0), Vector3(0.62, 1.25, 0.30), materials["road"])
-			var signal_colors := [Color("#e74c4c"), Color("#edb94b"), Color("#55bd78")]
+			var signal_pole := Node3D.new()
+			signal_pole.position = Vector3(side * 8.4, 0.0, z)
+			add_child(signal_pole)
+			_visual_box(signal_pole, Vector3(0.0, 2.3, 0.0), Vector3(0.12, 4.6, 0.12), materials["trim"])
+			_visual_box(signal_pole, Vector3(0.0, 4.45, 0.0), Vector3(0.62, 1.25, 0.30), materials["road"])
+			var signal_pole_colors := [Color("#e74c4c"), Color("#edb94b"), Color("#55bd78")]
 			for light_index in range(3):
-				var lamp_material := _material(signal_colors[light_index])
+				var lamp_material := _material(signal_pole_colors[light_index])
 				lamp_material.emission_enabled = true
-				lamp_material.emission = signal_colors[light_index]
+				lamp_material.emission = signal_pole_colors[light_index]
 				lamp_material.emission_energy_multiplier = 0.45
 				var lamp_mesh := SphereMesh.new()
 				lamp_mesh.radius = 0.13
@@ -544,7 +544,7 @@ func _add_city_furniture() -> void:
 				lamp_instance.mesh = lamp_mesh
 				lamp_instance.material_override = lamp_material
 				lamp_instance.position = Vector3(0.0, 4.82 - float(light_index) * 0.38, -0.17)
-				signal.add_child(lamp_instance)
+				signal_pole.add_child(lamp_instance)
 	# Glass bus shelters and benches make the sidewalks feel occupied.
 	for side in [-1.0, 1.0]:
 		var shelter := Node3D.new()
