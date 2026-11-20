@@ -10,6 +10,16 @@ var loading_layer: CanvasLayer
 const OSM_MAX_FILE_BYTES := 64000000
 
 func _ready() -> void:
+	# Keep a known-good world camera active while the player and map are being built.
+	# This prevents a blue clear-color-only screen if the player camera is not ready yet.
+	var boot_camera := Camera3D.new()
+	boot_camera.name = "BootFallbackCamera"
+	boot_camera.position = Vector3(0.0, 24.0, 48.0)
+	boot_camera.look_at(Vector3.ZERO, Vector3.UP)
+	boot_camera.far = 100000.0
+	add_child(boot_camera)
+	boot_camera.current = true
+
 	_build_materials()
 	_build_environment()
 
@@ -20,6 +30,11 @@ func _ready() -> void:
 	player.set_script(PlayerScript)
 	player.position = Vector3(-2.8, 0.15, 0.0)
 	add_child(player)
+	# The fallback camera stays active during map generation. Activate the
+	# third-person camera only after the world has finished building.
+	var player_camera := player.get("camera") as Camera3D
+	if player_camera != null:
+		player_camera.current = false
 	var camry := VehicleBody3D.new()
 	camry.set_script(VehicleScript)
 	camry.position = Vector3(0.0, 0.35, 0.0)
@@ -68,6 +83,9 @@ func _ready() -> void:
 		player.global_position = Vector3(-2.8, 1.0, 0.0)
 
 	_hide_loading_screen()
+	if is_instance_valid(player_camera):
+		player_camera.current = true
+	boot_camera.current = false
 
 func _show_loading_screen(message: String) -> void:
 	loading_layer = CanvasLayer.new()
