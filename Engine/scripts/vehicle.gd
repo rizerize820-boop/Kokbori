@@ -64,10 +64,54 @@ func _add_wheel(wheel_name: String, wheel_position: Vector3, steering_wheel: boo
 	add_child(wheel)
 
 func _build_visual() -> void:
-	# Temporary diagnostic body: the imported GLB is intentionally disabled.
-	# Chassis collision and VehicleWheel3D nodes remain unchanged.
-	_add_box("Debug body", Vector3(0.0, -0.02, 0.0), Vector3(1.9, 0.65, 4.2), Color("#202832"))
-	_add_box("Debug roof", Vector3(0.0, 0.72, 0.05), Vector3(1.55, 0.18, 1.85), Color("#18222c"))
+	# Detailed procedural sedan body. Physics chassis and wheel nodes stay intact.
+	_add_box("Camry lower body", Vector3(0.0, -0.02, 0.0), Vector3(1.92, 0.62, 4.22), Color("#687783"))
+	_add_box("Front hood", Vector3(0.0, 0.31, -1.38), Vector3(1.78, 0.20, 1.18), Color("#82919b"))
+	_add_box("Rear deck", Vector3(0.0, 0.32, 1.48), Vector3(1.78, 0.19, 0.92), Color("#74838d"))
+	_add_box("Cabin", Vector3(0.0, 0.77, 0.08), Vector3(1.58, 0.88, 2.05), Color("#263746"))
+	_add_box("Roof", Vector3(0.0, 1.23, 0.12), Vector3(1.48, 0.12, 1.55), Color("#87949c"))
+	# Side glazing and pillars.
+	for side in [-1.0, 1.0]:
+		_add_box("Front side glass", Vector3(side * 0.805, 0.84, -0.48), Vector3(0.035, 0.48, 0.78), Color("#24465d"))
+		_add_box("Rear side glass", Vector3(side * 0.805, 0.84, 0.48), Vector3(0.035, 0.48, 0.72), Color("#24465d"))
+		_add_box("Side sill", Vector3(side * 0.91, -0.30, 0.0), Vector3(0.10, 0.12, 2.85), Color("#303b43"))
+		_add_box("Side mirror", Vector3(side * 0.96, 0.55, -0.76), Vector3(0.20, 0.15, 0.28), Color("#202b34"))
+	# Windscreens, bumpers, grille and light clusters.
+	_add_box("Front windshield", Vector3(0.0, 0.91, -0.94), Vector3(1.43, 0.52, 0.055), Color("#31536a"))
+	_add_box("Rear windshield", Vector3(0.0, 0.91, 1.03), Vector3(1.43, 0.48, 0.055), Color("#31536a"))
+	_add_box("Front bumper", Vector3(0.0, -0.22, -2.10), Vector3(1.88, 0.22, 0.16), Color("#303a42"))
+	_add_box("Rear bumper", Vector3(0.0, -0.22, 2.10), Vector3(1.88, 0.22, 0.16), Color("#303a42"))
+	_add_box("Front grille", Vector3(0.0, 0.02, -2.13), Vector3(0.72, 0.22, 0.035), Color("#111a21"))
+	for side in [-1.0, 1.0]:
+		_add_box("LED headlamp", Vector3(side * 0.66, 0.12, -2.13), Vector3(0.43, 0.16, 0.045), Color("#e8edf0"))
+		_add_box("Tail lamp", Vector3(side * 0.66, 0.12, 2.13), Vector3(0.43, 0.18, 0.045), Color("#a83b38"))
+		_add_box("Door handle", Vector3(side * 0.965, 0.22, 0.10), Vector3(0.035, 0.055, 0.22), Color("#d0d6d8"))
+		_add_wheel_visual(Vector3(side * 0.94, -0.40, -1.34))
+		_add_wheel_visual(Vector3(side * 0.94, -0.40, 1.34))
+
+func _add_wheel_visual(pos: Vector3) -> void:
+	var tire := MeshInstance3D.new()
+	var tire_mesh := CylinderMesh.new()
+	tire_mesh.top_radius = 0.35
+	tire_mesh.bottom_radius = 0.35
+	tire_mesh.height = 0.22
+	tire_mesh.radial_segments = 20
+	tire.mesh = tire_mesh
+	tire.position = pos
+	tire.rotation_degrees.z = 90.0
+	tire.material_override = _mat(Color("#151a1f"))
+	add_child(tire)
+	var rim := MeshInstance3D.new()
+	var rim_mesh := CylinderMesh.new()
+	rim_mesh.top_radius = 0.20
+	rim_mesh.bottom_radius = 0.20
+	rim_mesh.height = 0.235
+	rim_mesh.radial_segments = 16
+	rim.mesh = rim_mesh
+	rim.position = pos
+	rim.rotation_degrees.z = 90.0
+	rim.material_override = _mat(Color("#aab4bb"))
+	add_child(rim)
 
 func _mat(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
