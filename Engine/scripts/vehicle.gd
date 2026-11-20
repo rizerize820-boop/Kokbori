@@ -186,7 +186,7 @@ func _physics_process(delta: float) -> void:
 	var forward_speed := linear_velocity.dot(-global_transform.basis.z)
 	var speed_kmh := absf(forward_speed) * 3.6
 	var engine := 0.0
-	var braking := 1.0
+	var braking := 0.0
 
 	if throttle > 0.05:
 		if forward_speed < -0.5:
