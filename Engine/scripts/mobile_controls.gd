@@ -25,19 +25,31 @@ var chat_input: LineEdit
 var chat_history: Array[String] = []
 
 func _ready() -> void:
-	player = get_parent().get_node_or_null("Player") as Node3D
-	vehicle = get_parent().get_node_or_null("Toyota_Camry_55") as Node3D
+	# Resolve gameplay nodes by script-assigned names, with a safe fallback.
+	var world := get_parent()
+	player = world.find_child("Player", true, false) as Node3D
+	vehicle = world.find_child("Toyota_Camry_55", true, false) as Node3D
 	if vehicle == null:
-		vehicle = get_parent().get_node_or_null("Vehicle") as Node3D
+		vehicle = world.find_child("Vehicle", true, false) as Node3D
+
 	screen_size = get_viewport().get_visible_rect().size
+	if screen_size.x < 2.0 or screen_size.y < 2.0:
+		screen_size = get_viewport().get_window().size
 	hud = Control.new()
+	hud.name = "MobileHUD"
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.draw.connect(_draw_hud)
+	hud.z_index = 100
 	add_child(hud)
+	# CanvasLayer children need an explicit viewport-sized rect on some iOS
+	# window configurations; otherwise custom drawing can be clipped to zero.
+	hud.position = Vector2.ZERO
+	hud.size = get_viewport().get_visible_rect().size
+	hud.draw.connect(_draw_hud)
 	_create_chat_ui()
 	_layout_controls()
 	get_viewport().size_changed.connect(_on_viewport_resized)
+	print("KOKBORI mobile HUD ready: ", screen_size, " player=", player != null, " vehicle=", vehicle != null)
 
 func _on_viewport_resized() -> void:
 	screen_size = get_viewport().get_visible_rect().size
