@@ -23,6 +23,7 @@ var chat_panel: PanelContainer
 var chat_log: Label
 var chat_input: LineEdit
 var chat_history: Array[String] = []
+var hud_refresh_accumulator := 0.0
 
 func _ready() -> void:
 	# Resolve gameplay nodes by script-assigned names, with a safe fallback.
@@ -140,22 +141,11 @@ func _draw_hud() -> void:
 		hud.draw_string(font, panel_pos + Vector2(18.0, 101.0) * ui_scale, "GAS АКТИВЕН" if gas_pressed else "KOKBORI MOTOR", HORIZONTAL_ALIGNMENT_LEFT, -1, int(9 * ui_scale), Color("#65d49a" if gas_pressed else "#8098a8"))
 	else:
 		hud.draw_string(font, Vector2(screen_size.x * 0.5 - 65.0, 34.0), "СВОБОДНЫЙ РЕЖИМ", HORIZONTAL_ALIGNMENT_CENTER, 150.0, int(12 * ui_scale), Color("#e4edf4", 0.9))
-	var can_enter_now := vehicle != null and bool(vehicle.call("can_enter"))
-	var driving_state := vehicle != null and bool(vehicle.get("driving"))
-	var throttle_state := float(vehicle.get("throttle")) if vehicle != null else 0.0
-	var speed_state := int(vehicle.call("get_speed_kmh")) if vehicle != null else 0
-	var wheel_contacts := int(vehicle.call("get_wheel_contact_count")) if vehicle != null else 0
-	var engine_output := float(vehicle.get("engine_force")) if vehicle != null else 0.0
-	var diagnostic := "CAR %s | DRIVE %s | GAS %s | THR %.1f | WHL %d/4 | ENG %.0f | %d KM/H" % [
-		("OK" if vehicle != null else "NULL"),
-		("ON" if driving_state else "OFF"),
-		("ON" if gas_pressed else "OFF"),
-		throttle_state,
-		wheel_contacts,
-		engine_output,
-		speed_state
-	]
-	hud.draw_string(font, Vector2(18.0, screen_size.y - 16.0), diagnostic, HORIZONTAL_ALIGNMENT_LEFT, screen_size.x - 36.0, 12, Color("#ffffff", 0.92))
+	# Clean roleplay footer instead of developer diagnostics.
+	var footer_width := 250.0 * ui_scale
+	var footer_position := Vector2(screen_size.x * 0.5 - footer_width * 0.5, screen_size.y - 34.0 * ui_scale)
+	hud.draw_rect(Rect2(footer_position, Vector2(footer_width, 24.0 * ui_scale)), Color(0.02, 0.055, 0.08, 0.72), true, 9.0)
+	hud.draw_string(font, footer_position + Vector2(0.0, 17.0 * ui_scale), "АСТАНА  •  KZT 125 000  •  ID 001", HORIZONTAL_ALIGNMENT_CENTER, footer_width, int(10 * ui_scale), Color("#dce7ef"))
 
 func _draw_action_button(center: Vector2, radius: float, label: String, tint: Color) -> void:
 	hud.draw_circle(center, radius + 9.0, Color(0.0, 0.0, 0.0, 0.28))
@@ -282,10 +272,13 @@ func _update_vehicle_controls() -> void:
 		var steering_value := 0.0 if absf(stick_vector.x) < 0.12 else stick_vector.x
 		vehicle.call("set_controls", throttle_value, steering_value)
 
-func _process(_delta: float) -> void:
-	# Keep touch states applied even if the joystick and pedal are held together.
+func _process(delta: float) -> void:
+	# Keep vehicle controls responsive, but redraw the HUD at a capped rate
+	# rather than rebuilding every UI primitive on every rendered frame.
 	_update_vehicle_controls()
-	if hud != null:
+	hud_refresh_accumulator += delta
+	if hud != null and hud_refresh_accumulator >= 0.08:
+		hud_refresh_accumulator = 0.0
 		hud.queue_redraw()
 
 func _set_action(action_name: String, pressed: bool) -> void:
