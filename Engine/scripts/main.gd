@@ -494,14 +494,18 @@ func _build_osm_city() -> void:
 		var kind := str(properties.get("kind", ""))
 		var coords: Array = geometry.get("coordinates", [])
 		# Build only the playable central area; the source snapshot covers a huge metro region.
-		var sample_coord: Array = []
+		# Use the closest vertex, not the first vertex: long OSM roads and
+		# building outlines often start outside the playable radius but cross it.
+		var sample_coords: Array = []
 		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
-			var sample_ring: Array = coords[0]
-			if not sample_ring.is_empty():
-				sample_coord = sample_ring[0]
-		elif geometry.get("type", "") == "LineString" and not coords.is_empty():
-			sample_coord = coords[0]
-		if sample_coord.size() >= 2 and _osm_point(sample_coord).length() > OSM_RENDER_RADIUS:
+			sample_coords = coords[0]
+		elif geometry.get("type", "") == "LineString":
+			sample_coords = coords
+		var nearest_distance := INF
+		for sample_coord in sample_coords:
+			if sample_coord is Array and sample_coord.size() >= 2:
+				nearest_distance = minf(nearest_distance, _osm_point(sample_coord).length())
+		if nearest_distance > OSM_RENDER_RADIUS:
 			continue
 		if geometry.get("type", "") == "Polygon" and not coords.is_empty():
 			var ring: Array = coords[0]
