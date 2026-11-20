@@ -10,6 +10,11 @@ var jump_requested := false
 var flying := false
 var flight_vertical_input := 0.0
 var flight_speed := 12.0
+var left_arm_pivot: Node3D
+var right_arm_pivot: Node3D
+var left_leg_pivot: Node3D
+var right_leg_pivot: Node3D
+var animation_clock := 0.0
 const MIN_FLIGHT_SPEED := 2.0
 const MAX_FLIGHT_SPEED := 80.0
 
@@ -23,16 +28,7 @@ func _ready() -> void:
 	collider.position.y = 0.9
 	add_child(collider)
 
-	var body_mesh := MeshInstance3D.new()
-	var body := CapsuleMesh.new()
-	body.radius = 0.38
-	body.height = 1.8
-	body_mesh.mesh = body
-	body_mesh.position.y = 0.9
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.12, 0.34, 0.72)
-	body_mesh.material_override = material
-	add_child(body_mesh)
+	_build_character_visual()
 
 	camera_pivot = Node3D.new()
 	camera_pivot.name = "CameraPivot"
@@ -47,6 +43,94 @@ func _ready() -> void:
 	camera.position = Vector3.ZERO
 	arm.add_child(camera)
 	camera.current = true
+
+
+func _build_character_visual() -> void:
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color("#c58f70")
+	skin.roughness = 0.82
+	var jacket := StandardMaterial3D.new()
+	jacket.albedo_color = Color("#263f59")
+	jacket.roughness = 0.72
+	var trousers := StandardMaterial3D.new()
+	trousers.albedo_color = Color("#202a35")
+	trousers.roughness = 0.9
+	var shoes := StandardMaterial3D.new()
+	shoes.albedo_color = Color("#111820")
+	shoes.roughness = 0.86
+
+	var torso := MeshInstance3D.new()
+	var torso_mesh := CapsuleMesh.new()
+	torso_mesh.radius = 0.29
+	torso_mesh.height = 0.92
+	torso.mesh = torso_mesh
+	torso.position = Vector3(0.0, 1.13, 0.0)
+	torso.material_override = jacket
+	add_child(torso)
+
+	var head := MeshInstance3D.new()
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.22
+	head_mesh.height = 0.44
+	head.mesh = head_mesh
+	head.position = Vector3(0.0, 1.78, 0.0)
+	head.material_override = skin
+	add_child(head)
+
+	var hair := MeshInstance3D.new()
+	var hair_mesh := SphereMesh.new()
+	hair_mesh.radius = 0.225
+	hair_mesh.height = 0.22
+	hair.mesh = hair_mesh
+	hair.position = Vector3(0.0, 1.91, 0.015)
+	var hair_material := StandardMaterial3D.new()
+	hair_material.albedo_color = Color("#242329")
+	hair.material_override = hair_material
+	add_child(hair)
+
+	left_arm_pivot = _make_limb_pivot("LeftArm", Vector3(-0.34, 1.43, 0.0), 0.13, 0.62, jacket)
+	right_arm_pivot = _make_limb_pivot("RightArm", Vector3(0.34, 1.43, 0.0), 0.13, 0.62, jacket)
+	left_leg_pivot = _make_limb_pivot("LeftLeg", Vector3(-0.16, 0.72, 0.0), 0.15, 0.72, trousers)
+	right_leg_pivot = _make_limb_pivot("RightLeg", Vector3(0.16, 0.72, 0.0), 0.15, 0.72, trousers)
+	for side in [-1.0, 1.0]:
+		var shoe := MeshInstance3D.new()
+		var shoe_mesh := BoxMesh.new()
+		shoe_mesh.size = Vector3(0.25, 0.13, 0.38)
+		shoe.mesh = shoe_mesh
+		shoe.position = Vector3(side * 0.16, 0.10, -0.07)
+		shoe.material_override = shoes
+		add_child(shoe)
+
+func _make_limb_pivot(limb_name: String, pivot_position: Vector3, radius: float, length: float, material: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = limb_name
+	pivot.position = pivot_position
+	add_child(pivot)
+	var limb := MeshInstance3D.new()
+	var capsule := CapsuleMesh.new()
+	capsule.radius = radius
+	capsule.height = length
+	limb.mesh = capsule
+	limb.position.y = -length * 0.5
+	limb.material_override = material
+	pivot.add_child(limb)
+	return pivot
+
+func _process(delta: float) -> void:
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed > 0.35 and is_on_floor() and not flying:
+		animation_clock += delta * (8.0 if sprinting else 6.0)
+		var swing := sin(animation_clock) * 0.48
+		left_leg_pivot.rotation.x = swing
+		right_leg_pivot.rotation.x = -swing
+		left_arm_pivot.rotation.x = -swing * 0.65
+		right_arm_pivot.rotation.x = swing * 0.65
+	else:
+		left_leg_pivot.rotation.x = move_toward(left_leg_pivot.rotation.x, 0.0, delta * 4.0)
+		right_leg_pivot.rotation.x = move_toward(right_leg_pivot.rotation.x, 0.0, delta * 4.0)
+		left_arm_pivot.rotation.x = move_toward(left_arm_pivot.rotation.x, 0.0, delta * 4.0)
+		right_arm_pivot.rotation.x = move_toward(right_arm_pivot.rotation.x, 0.0, delta * 4.0)
+
 
 func _physics_process(delta: float) -> void:
 	if global_position.y < -5.0:
