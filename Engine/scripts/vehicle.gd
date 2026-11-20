@@ -134,10 +134,7 @@ func set_driver(player: CharacterBody3D) -> void:
 	driver = player
 	driver_collider = player.get_node_or_null("CollisionShape3D") as CollisionShape3D
 	driver_camera_pivot = player.get_node_or_null("CameraPivot") as Node3D
-	for child in player.get_children():
-		if child is MeshInstance3D:
-			driver_mesh = child
-			break
+	driver_mesh = player.get_node_or_null("CharacterVisuals") as Node3D
 
 func can_enter() -> bool:
 	return not driving and driver != null and global_position.distance_to(driver.global_position) < 10.0
