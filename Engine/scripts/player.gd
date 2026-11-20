@@ -9,6 +9,9 @@ var sprinting := false
 var jump_requested := false
 var flying := false
 var flight_vertical_input := 0.0
+var flight_speed := 12.0
+const MIN_FLIGHT_SPEED := 2.0
+const MAX_FLIGHT_SPEED := 80.0
 
 func _ready() -> void:
 	name = "Player"
@@ -58,7 +61,7 @@ func _physics_process(delta: float) -> void:
 	var forward := -camera_pivot.global_transform.basis.z
 	var right := camera_pivot.global_transform.basis.x
 	var direction := (right * input_dir.x + forward * -input_dir.y).normalized()
-	var current_speed := move_speed * (1.55 if sprinting else 1.0)
+	var current_speed := flight_speed if flying else move_speed * (1.55 if sprinting else 1.0)
 	var target := direction * current_speed
 	velocity.x = move_toward(velocity.x, target.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target.z, acceleration * delta)
@@ -66,7 +69,7 @@ func _physics_process(delta: float) -> void:
 	if flying:
 		var keyboard_vertical := Input.get_action_strength("ui_accept") - Input.get_action_strength("ui_down")
 		var vertical := flight_vertical_input if absf(flight_vertical_input) > 0.01 else keyboard_vertical
-		velocity.y = move_toward(velocity.y, vertical * 6.0, acceleration * delta)
+		velocity.y = move_toward(velocity.y, vertical * flight_speed, acceleration * delta)
 	else:
 		if not is_on_floor():
 			velocity.y -= gravity * delta
@@ -100,3 +103,7 @@ func set_flying(enabled: bool) -> void:
 
 func set_flight_vertical(direction: float) -> void:
 	flight_vertical_input = clampf(direction, -1.0, 1.0) if flying else 0.0
+
+func set_flight_speed(value: float) -> float:
+	flight_speed = clampf(value, MIN_FLIGHT_SPEED, MAX_FLIGHT_SPEED)
+	return flight_speed
