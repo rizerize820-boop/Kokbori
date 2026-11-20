@@ -46,9 +46,11 @@ func _ready() -> void:
 	# The fallback camera stays active during map generation. Activate the
 	# third-person camera only after the world has finished building.
 	var player_camera := player.get("camera") as Camera3D
-	if player_camera != null:
-		player_camera.current = true
-	boot_camera.current = false
+	if is_instance_valid(player_camera):
+		player_camera.make_current()
+	else:
+		# Never disable the only known-good camera until the player camera exists.
+		boot_camera.make_current()
 	# Put the player in the playable area immediately; city generation must not
 	# hold the camera on the distant boot view.
 	player.global_position = Vector3(-2.8, 1.0, 0.0)
@@ -91,8 +93,14 @@ func _ready() -> void:
 
 	_hide_loading_screen()
 	if is_instance_valid(player_camera):
-		player_camera.current = true
-	boot_camera.current = false
+		player_camera.make_current()
+		boot_camera.current = false
+	else:
+		# Keep a visible world view instead of falling back to the blue clear color.
+		boot_camera.make_current()
+		var preview := get_node_or_null("FallbackPreview")
+		if preview != null:
+			preview.visible = true
 
 func _show_loading_screen(message: String) -> void:
 	loading_layer = CanvasLayer.new()
