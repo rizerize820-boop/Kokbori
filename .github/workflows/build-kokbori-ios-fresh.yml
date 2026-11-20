@@ -63,15 +63,15 @@ jobs:
         run: |
           set -euo pipefail
           GODOT="/Applications/Godot.app/Contents/MacOS/Godot"
-          rm -rf build
-          mkdir -p build
+          rm -rf Engine/build
+          mkdir -p Engine/build
           "$GODOT" --headless --path Engine --export-debug "iOS" build/KOKBORI-RP
           echo "Exported files:"
-          find build -maxdepth 5 -print
-          PROJECT="$(find build -maxdepth 5 -type d -name '*.xcodeproj' -print -quit)"
+          find Engine/build -maxdepth 5 -print
+          PROJECT="$(find Engine/build -maxdepth 5 -type d -name '*.xcodeproj' -print -quit)"
           if [ -z "$PROJECT" ]; then
             echo "ERROR: Godot did not produce an Xcode project."
-            find build -maxdepth 5 -type f -print
+            find Engine/build -maxdepth 5 -type f -print
             exit 1
           fi
           echo "XCODE_PROJECT=$PROJECT" >> "$GITHUB_ENV"
