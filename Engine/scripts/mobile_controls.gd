@@ -117,12 +117,15 @@ func _draw_hud() -> void:
 	var driving_state := vehicle != null and bool(vehicle.get("driving"))
 	var throttle_state := float(vehicle.get("throttle")) if vehicle != null else 0.0
 	var speed_state := int(vehicle.call("get_speed_kmh")) if vehicle != null else 0
-	var diagnostic := "CAR %s  |  ENTER %s  |  DRIVE %s  |  GAS %s  |  THR %.1f  |  %d KM/H" % [
+	var wheel_contacts := int(vehicle.call("get_wheel_contact_count")) if vehicle != null else 0
+	var engine_output := float(vehicle.get("engine_force")) if vehicle != null else 0.0
+	var diagnostic := "CAR %s | DRIVE %s | GAS %s | THR %.1f | WHL %d/4 | ENG %.0f | %d KM/H" % [
 		("OK" if vehicle != null else "NULL"),
-		("YES" if can_enter_now else "NO"),
 		("ON" if driving_state else "OFF"),
 		("ON" if gas_pressed else "OFF"),
 		throttle_state,
+		wheel_contacts,
+		engine_output,
 		speed_state
 	]
 	hud.draw_string(font, Vector2(18.0, screen_size.y - 16.0), diagnostic, HORIZONTAL_ALIGNMENT_LEFT, screen_size.x - 36.0, 12, Color("#ffffff", 0.92))
