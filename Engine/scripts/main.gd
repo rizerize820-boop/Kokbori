@@ -22,6 +22,19 @@ func _ready() -> void:
 
 	_build_materials()
 	_build_environment()
+	# Shared collision floor: visible roads are meshes only and cannot support
+	# CharacterBody3D or VehicleBody3D without a physics body.
+	var ground_body := StaticBody3D.new()
+	ground_body.name = "WorldGroundCollision"
+	ground_body.collision_layer = 3
+	ground_body.collision_mask = 3
+	var ground_shape := CollisionShape3D.new()
+	var ground_box := BoxShape3D.new()
+	ground_box.size = Vector3(1200.0, 1.0, 1200.0)
+	ground_shape.shape = ground_box
+	ground_shape.position.y = -0.5
+	ground_body.add_child(ground_shape)
+	add_child(ground_body)
 
 	# Create the player and active camera before generating the city. Previously
 	# the scene had no active camera while the large GeoJSON file was parsed,
@@ -34,10 +47,14 @@ func _ready() -> void:
 	# third-person camera only after the world has finished building.
 	var player_camera := player.get("camera") as Camera3D
 	if player_camera != null:
-		player_camera.current = false
+		player_camera.current = true
+	boot_camera.current = false
+	# Put the player in the playable area immediately; city generation must not
+	# hold the camera on the distant boot view.
+	player.global_position = Vector3(-2.8, 1.0, 0.0)
 	var camry := VehicleBody3D.new()
 	camry.set_script(VehicleScript)
-	camry.position = Vector3(0.0, 0.35, 0.0)
+	camry.position = Vector3(0.0, 1.15, 0.0)
 	add_child(camry)
 	camry.call("set_driver", player)
 	var controls := CanvasLayer.new()
@@ -50,30 +67,12 @@ func _ready() -> void:
 	# Temporarily use the optimized procedural Astana scene on iOS. The full-city
 	# GeoJSON parser can stall startup on mobile devices; re-enable OSM only after
 	# it is moved to chunked background loading.
+	# Always use the lightweight procedural city on iPhone.
+	# Parsing the full Astana GeoJSON synchronously can stall the main thread,
+	# leaving the boot camera frozen and delaying player activation.
 	var use_osm := false
-	var map_path := "res://data/astana_osm.geojson"
-	if FileAccess.file_exists(map_path):
-		var map_file := FileAccess.open(map_path, FileAccess.READ)
-		if map_file != null:
-			var map_size := map_file.get_length()
-			map_file.close()
-			# The current full-city Astana snapshot is larger than the old central-area limit.
-			# Keep a generous cap for the 2026 city extract; parsing is followed by
-			# incremental feature processing below.
-			use_osm = map_size > 0 and map_size <= OSM_MAX_FILE_BYTES
-			if not use_osm:
-				push_warning("Astana GeoJSON is too large for safe startup; using optimized city.")
-	if use_osm:
-		await _build_osm_city()
-		if int(_osm_surfaces.get("processed_count", 0)) < 20:
-			push_warning("OSM map has too few usable features; loading fallback city.")
-			_build_street_grid()
-			_build_city()
-		else:
-			_build_baiterek()
-	else:
-		_build_street_grid()
-		_build_city()
+	_build_street_grid()
+	_build_city()
 
 	# Spawn at the open forecourt south of Astana-Nurly Zhol, away from the map origin.
 	if use_osm:
