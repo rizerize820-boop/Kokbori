@@ -82,6 +82,11 @@ func _ready() -> void:
 		camry.global_position = Vector3(0.0, 1.15, 0.0)
 		player.global_position = Vector3(-2.8, 1.0, 0.0)
 
+	# Remove the static preview only after the real city has finished building.
+	var fallback_preview := get_node_or_null("FallbackPreview")
+	if fallback_preview != null:
+		fallback_preview.visible = false
+
 	_hide_loading_screen()
 	if is_instance_valid(player_camera):
 		player_camera.current = true
