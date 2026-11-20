@@ -91,13 +91,13 @@ func _hide_loading_screen() -> void:
 	loading_layer = null
 
 func _build_materials() -> void:
-	materials["road"] = _material(Color("#202832"))
+	materials["road"] = _material(Color("#252c35"))
 	(materials["road"] as StandardMaterial3D).roughness = 0.94
-	materials["sidewalk"] = _material(Color("#c0c5c5"))
+	materials["sidewalk"] = _material(Color("#aeb8b6"))
 	materials["line"] = _material(Color("#e7dfbd"))
 	materials["road_mark"] = _material(Color("#e8dfc4"))
 	materials["road_edge"] = _material(Color("#b9c0bd"))
-	materials["grass"] = _material(Color("#667b68"))
+	materials["grass"] = _material(Color("#526a58"))
 	materials["building_a"] = _material(Color("#c0c5c7"))
 	materials["building_b"] = _material(Color("#aab7c0"))
 	materials["building_c"] = _material(Color("#c9bda9"))
@@ -163,15 +163,15 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#b8c8dc")
-	env.ambient_light_energy = 1.05
-	env.tonemap_exposure = 1.08
+	env.ambient_light_energy = 0.88
+	env.tonemap_exposure = 1.0
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.12
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color("#b8c5ce")
-	env.fog_density = 0.00065
+	env.fog_density = 0.00038
 	env.glow_enabled = true
 	env.glow_intensity = 0.28
 	env.glow_strength = 0.55
