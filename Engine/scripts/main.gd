@@ -43,14 +43,19 @@ func _ready() -> void:
 	player.set_script(PlayerScript)
 	player.position = Vector3(-2.8, 0.15, 0.0)
 	add_child(player)
-	# The fallback camera stays active during map generation. Activate the
-	# third-person camera only after the world has finished building.
-	var player_camera := player.get("camera") as Camera3D
-	if is_instance_valid(player_camera):
-		player_camera.make_current()
-	else:
-		# Never disable the only known-good camera until the player camera exists.
-		boot_camera.make_current()
+	# Resolve the camera by its actual scene-tree path after the player's _ready.
+	# Object.get() can be unreliable for dynamically attached script properties
+	# on some export/runtime combinations.
+	var player_camera := player.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") as Camera3D
+	if player_camera == null:
+		# A guaranteed third-person fallback attached to the player itself.
+		player_camera = Camera3D.new()
+		player_camera.name = "EmergencyPlayerCamera"
+		player_camera.position = Vector3(0.0, 3.0, 7.0)
+		player_camera.look_at(Vector3(0.0, 1.0, 0.0), Vector3.UP)
+		player.add_child(player_camera)
+	player_camera.current = true
+	player_camera.make_current()
 	# Put the player in the playable area immediately; city generation must not
 	# hold the camera on the distant boot view.
 	player.global_position = Vector3(-2.8, 1.0, 0.0)
@@ -86,21 +91,16 @@ func _ready() -> void:
 		camry.global_position = Vector3(0.0, 1.15, 0.0)
 		player.global_position = Vector3(-2.8, 1.0, 0.0)
 
-	# Remove the static preview only after the real city has finished building.
+	# The procedural city is now the active world; never leave the static
+	# three-box startup preview covering the actual spawn area.
 	var fallback_preview := get_node_or_null("FallbackPreview")
 	if fallback_preview != null:
 		fallback_preview.visible = false
 
 	_hide_loading_screen()
-	if is_instance_valid(player_camera):
-		player_camera.make_current()
-		boot_camera.current = false
-	else:
-		# Keep a visible world view instead of falling back to the blue clear color.
-		boot_camera.make_current()
-		var preview := get_node_or_null("FallbackPreview")
-		if preview != null:
-			preview.visible = true
+	player_camera.current = true
+	player_camera.make_current()
+	boot_camera.current = false
 
 func _show_loading_screen(message: String) -> void:
 	loading_layer = CanvasLayer.new()
