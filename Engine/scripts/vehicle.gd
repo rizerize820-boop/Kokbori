@@ -94,8 +94,9 @@ func _fit_model_to_wheels(model: Node3D) -> void:
 			else:
 				bounds = bounds.expand(point)
 	if found_mesh:
-		# The physics wheels sit about 1.14 m below the VehicleBody origin.
-		model.position.y = -1.03 - bounds.position.y
+		# Lift the rendered body slightly above the wheel contact plane so it
+		# does not visually clip into the road after suspension settles.
+		model.position.y = -0.91 - bounds.position.y
 	else:
 		push_warning("Vehicle model has no MeshInstance3D nodes; visual fitting skipped.")
 
